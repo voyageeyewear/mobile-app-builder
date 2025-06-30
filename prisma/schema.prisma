@@ -1,0 +1,292 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+}
+
+// Mobile App Configuration
+model MobileApp {
+  id          String   @id @default(cuid())
+  shop        String   @unique
+  name        String
+  bundleId    String
+  packageName String?
+  status      AppStatus @default(DRAFT)
+  activeThemeId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  activeTheme Theme? @relation("ActiveTheme", fields: [activeThemeId], references: [id])
+  themes      Theme[] @relation("AppThemes")
+  pages       AppPage[]
+  notifications PushNotificationTemplate[]
+  analytics   AnalyticsEvent[]
+  
+  @@map("mobile_apps")
+}
+
+// Theme Management
+model Theme {
+  id          String   @id @default(cuid())
+  appId       String
+  name        String
+  description String?
+  primaryColor String
+  secondaryColor String
+  backgroundColor String
+  textColor   String
+  fontFamily  String   @default("Inter")
+  isActive    Boolean  @default(false)
+  isScheduled Boolean  @default(false)
+  scheduledStart DateTime?
+  scheduledEnd   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  app         MobileApp @relation("AppThemes", fields: [appId], references: [id], onDelete: Cascade)
+  activeApps  MobileApp[] @relation("ActiveTheme")
+  pages       AppPage[]
+  
+  @@map("themes")
+}
+
+// App Pages/Screens
+model AppPage {
+  id          String   @id @default(cuid())
+  appId       String
+  themeId     String?
+  name        String
+  slug        String
+  type        PageType @default(CUSTOM)
+  isHomePage  Boolean  @default(false)
+  order       Int      @default(0)
+  metaTitle   String?
+  metaDescription String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  app         MobileApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+  theme       Theme?    @relation(fields: [themeId], references: [id])
+  components  PageComponent[]
+  
+  @@unique([appId, slug])
+  @@map("app_pages")
+}
+
+// Reusable Components/Blocks
+model Component {
+  id          String   @id @default(cuid())
+  name        String
+  type        ComponentType
+  category    String
+  description String?
+  config      Json     // Component configuration schema
+  defaultProps Json    // Default properties
+  icon        String?
+  thumbnail   String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  pageComponents PageComponent[]
+  
+  @@map("components")
+}
+
+// Components placed on pages
+model PageComponent {
+  id          String   @id @default(cuid())
+  pageId      String
+  componentId String
+  order       Int
+  props       Json     // Component instance properties
+  styles      Json?    // Custom styles for this instance
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  page        AppPage   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  component   Component @relation(fields: [componentId], references: [id])
+  
+  @@map("page_components")
+}
+
+// Push Notification Templates
+model PushNotificationTemplate {
+  id          String   @id @default(cuid())
+  appId       String
+  name        String
+  type        NotificationType
+  title       String
+  body        String
+  imageUrl    String?
+  deepLink    String?
+  trigger     Json     // Trigger configuration (cart abandonment, back in stock, etc.)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  app         MobileApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+  sentNotifications SentNotification[]
+  
+  @@map("push_notification_templates")
+}
+
+// Sent Notifications Log
+model SentNotification {
+  id          String   @id @default(cuid())
+  templateId  String
+  userId      String?
+  deviceToken String
+  title       String
+  body        String
+  status      NotificationStatus
+  sentAt      DateTime @default(now())
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  
+  // Relations
+  template    PushNotificationTemplate @relation(fields: [templateId], references: [id])
+  
+  @@map("sent_notifications")
+}
+
+// Analytics Events
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  appId       String
+  userId      String?
+  sessionId   String
+  eventType   EventType
+  eventName   String
+  properties  Json?
+  timestamp   DateTime @default(now())
+  
+  // Relations
+  app         MobileApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+  
+  @@map("analytics_events")
+}
+
+// Integration Settings
+model Integration {
+  id          String   @id @default(cuid())
+  shop        String
+  type        IntegrationType
+  name        String
+  config      Json     // API keys, settings, etc.
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([shop, type])
+  @@map("integrations")
+}
+
+// Enums
+enum AppStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PageType {
+  HOME
+  CATEGORY
+  PRODUCT
+  CART
+  PROFILE
+  CUSTOM
+  LANDING
+}
+
+enum ComponentType {
+  BANNER
+  CAROUSEL
+  COUNTDOWN
+  PRODUCT_LIST
+  PRODUCT_GRID
+  TEXT_BLOCK
+  IMAGE
+  VIDEO
+  BUTTON
+  SPACER
+  DIVIDER
+  TESTIMONIAL
+  FAQ
+  FORM
+  MAP
+  SOCIAL_FEED
+}
+
+enum NotificationType {
+  CART_ABANDONMENT
+  BACK_IN_STOCK
+  PRICE_DROP
+  NEW_ARRIVAL
+  PROMOTIONAL
+  GEOLOCATION
+  CUSTOM
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  OPENED
+  CLICKED
+}
+
+enum EventType {
+  PAGE_VIEW
+  PRODUCT_VIEW
+  ADD_TO_CART
+  PURCHASE
+  SEARCH
+  NOTIFICATION_OPEN
+  DEEP_LINK_CLICK
+  APP_OPEN
+  APP_CLOSE
+  CUSTOM
+}
+
+enum IntegrationType {
+  KLAVIYO
+  GOOGLE_ANALYTICS
+  FACEBOOK_PIXEL
+  MAILCHIMP
+  ZENDESK
+}
