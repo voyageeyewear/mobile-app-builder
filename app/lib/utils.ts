@@ -32,6 +32,63 @@ export interface ShopifyProduct {
   tags: string[];
 }
 
+// Sample collection data structure
+export interface ShopifyCollection {
+  id: string;
+  title: string;
+  handle: string;
+  description: string;
+  image?: {
+    url: string;
+    altText?: string;
+  };
+  productsCount: number;
+}
+
+// Mock Shopify collections
+export const mockShopifyCollections: ShopifyCollection[] = [
+  {
+    id: "gid://shopify/Collection/1",
+    title: "Best Sellers",
+    handle: "best-sellers",
+    description: "Our most popular products loved by customers",
+    image: { url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=200&h=200&fit=crop", altText: "Best Sellers" },
+    productsCount: 12
+  },
+  {
+    id: "gid://shopify/Collection/2",
+    title: "New Arrivals",
+    handle: "new-arrivals",
+    description: "Fresh products just added to our store",
+    image: { url: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=200&h=200&fit=crop", altText: "New Arrivals" },
+    productsCount: 8
+  },
+  {
+    id: "gid://shopify/Collection/3",
+    title: "Electronics",
+    handle: "electronics",
+    description: "Latest gadgets and electronic devices",
+    image: { url: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop", altText: "Electronics" },
+    productsCount: 15
+  },
+  {
+    id: "gid://shopify/Collection/4",
+    title: "Fashion",
+    handle: "fashion",
+    description: "Trendy clothing and accessories",
+    image: { url: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=200&h=200&fit=crop", altText: "Fashion" },
+    productsCount: 24
+  },
+  {
+    id: "gid://shopify/Collection/5",
+    title: "Home & Living",
+    handle: "home-living",
+    description: "Beautiful items for your home",
+    image: { url: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop", altText: "Home & Living" },
+    productsCount: 18
+  }
+];
+
 // Mock real-looking products for demonstration
 export const mockShopifyProducts: ShopifyProduct[] = [
   {
@@ -223,11 +280,17 @@ export const componentLibrary = [
       autoPlay: false,
       itemsPerView: 2,
       spacing: "16px",
+      dataSource: "mock", // "mock", "collection", "products"
+      collectionId: "",
+      productIds: [],
       products: getRandomProducts(4)
     },
     config: {
       properties: [
         { name: "title", type: "text", label: "Section Title" },
+        { name: "dataSource", type: "select", label: "Data Source", options: ["mock", "collection", "products"] },
+        { name: "collectionId", type: "shopify_collection", label: "Shopify Collection", condition: { field: "dataSource", value: "collection" } },
+        { name: "productIds", type: "shopify_products", label: "Select Products", condition: { field: "dataSource", value: "products" } },
         { name: "showArrows", type: "boolean", label: "Show Navigation Arrows" },
         { name: "autoPlay", type: "boolean", label: "Auto Play" },
         { name: "itemsPerView", type: "number", label: "Items Per View", min: 1, max: 4 } as any,
@@ -270,11 +333,17 @@ export const componentLibrary = [
       showPrice: true,
       showRating: true,
       aspectRatio: "1:1",
+      dataSource: "mock", // "mock", "collection", "products"
+      collectionId: "",
+      productIds: [],
       products: getRandomProducts(6)
     },
     config: {
       properties: [
         { name: "title", type: "text", label: "Section Title" },
+        { name: "dataSource", type: "select", label: "Data Source", options: ["mock", "collection", "products"] },
+        { name: "collectionId", type: "shopify_collection", label: "Shopify Collection", condition: { field: "dataSource", value: "collection" } },
+        { name: "productIds", type: "shopify_products", label: "Select Products", condition: { field: "dataSource", value: "products" } },
         { name: "columns", type: "number", label: "Columns", min: 1, max: 3 } as any,
         { name: "showPrice", type: "boolean", label: "Show Price" },
         { name: "showRating", type: "boolean", label: "Show Rating" },

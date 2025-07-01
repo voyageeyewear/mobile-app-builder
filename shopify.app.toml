@@ -3,7 +3,7 @@
 client_id = "46e3839f24818638319c72bab3ffb1fc"
 name = "app-builder"
 handle = "app-builder-25"
-application_url = "https://power-inter-continually-allowed.trycloudflare.com"
+application_url = "https://static-everything-intend-substitute.trycloudflare.com"
 embedded = true
 
 [build]
@@ -42,7 +42,7 @@ api_version = "2025-04"
 scopes = "write_products,read_products,write_orders,read_orders,write_customers,read_customers,read_inventory,write_inventory,read_themes,write_themes,read_content,write_content,read_files,write_files,read_analytics,read_discounts,write_discounts"
 
 [auth]
-redirect_urls = ["https://power-inter-continually-allowed.trycloudflare.com/auth/callback", "https://power-inter-continually-allowed.trycloudflare.com/auth/shopify/callback", "https://power-inter-continually-allowed.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://static-everything-intend-substitute.trycloudflare.com/auth/callback", "https://static-everything-intend-substitute.trycloudflare.com/auth/shopify/callback", "https://static-everything-intend-substitute.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

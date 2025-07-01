@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
-import { componentLibrary, generateId, cn, mockShopifyProducts, formatPrice } from "../lib/utils";
+import { componentLibrary, generateId, cn, mockShopifyProducts, mockShopifyCollections, formatPrice } from "../lib/utils";
 import { prisma } from "../db.server";
 import {
   DndContext,
@@ -358,11 +358,33 @@ function ComponentPreview({ component }: { component: PageComponent }) {
       );
 
     case "CAROUSEL":
-      const carouselProducts = component.props.products || mockShopifyProducts.slice(0, 4);
+      let carouselProducts = mockShopifyProducts.slice(0, 4);
+      
+      // Use selected data source
+      if (component.props.dataSource === "collection" && component.props.collectionId) {
+        // In a real app, this would fetch products from the selected collection
+        const selectedCollection = mockShopifyCollections.find(c => c.id === component.props.collectionId);
+        if (selectedCollection) {
+          carouselProducts = mockShopifyProducts.slice(0, Math.min(6, selectedCollection.productsCount));
+        }
+      } else if (component.props.dataSource === "products" && component.props.productIds?.length > 0) {
+        carouselProducts = mockShopifyProducts.filter(p => component.props.productIds.includes(p.id));
+      }
+      
       return (
         <div>
           {component.props.title && (
             <h3 className="font-bold text-lg mb-3">{component.props.title}</h3>
+          )}
+          {component.props.dataSource === "collection" && component.props.collectionId && (
+            <div className="mb-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md inline-block">
+              Collection: {mockShopifyCollections.find(c => c.id === component.props.collectionId)?.title}
+            </div>
+          )}
+          {component.props.dataSource === "products" && component.props.productIds?.length > 0 && (
+            <div className="mb-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-md inline-block">
+              {component.props.productIds.length} selected product(s)
+            </div>
           )}
           <div className="flex gap-3 overflow-x-auto pb-2">
             {carouselProducts.slice(0, component.props.itemsPerView || 2).map((product: any, index: number) => (
@@ -387,18 +409,40 @@ function ComponentPreview({ component }: { component: PageComponent }) {
       );
 
     case "PRODUCT_GRID":
-      const gridProducts = component.props.products || mockShopifyProducts.slice(0, 6);
+      let gridProducts = mockShopifyProducts.slice(0, 6);
       const columns = component.props.columns || 2;
+      
+      // Use selected data source
+      if (component.props.dataSource === "collection" && component.props.collectionId) {
+        // In a real app, this would fetch products from the selected collection
+        const selectedCollection = mockShopifyCollections.find(c => c.id === component.props.collectionId);
+        if (selectedCollection) {
+          gridProducts = mockShopifyProducts.slice(0, Math.min(6, selectedCollection.productsCount));
+        }
+      } else if (component.props.dataSource === "products" && component.props.productIds?.length > 0) {
+        gridProducts = mockShopifyProducts.filter(p => component.props.productIds.includes(p.id));
+      }
+      
       return (
         <div>
           {component.props.title && (
             <h3 className="font-bold text-lg mb-3">{component.props.title}</h3>
           )}
+          {component.props.dataSource === "collection" && component.props.collectionId && (
+            <div className="mb-3 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md inline-block">
+              Collection: {mockShopifyCollections.find(c => c.id === component.props.collectionId)?.title}
+            </div>
+          )}
+          {component.props.dataSource === "products" && component.props.productIds?.length > 0 && (
+            <div className="mb-3 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-md inline-block">
+              {component.props.productIds.length} selected product(s)
+            </div>
+          )}
           <div 
             className="grid gap-3"
             style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
           >
-            {gridProducts.slice(0, columns * 2).map((product: any, index: number) => (
+            {gridProducts.slice(0, columns * 3).map((product: any, index: number) => (
               <div key={index} className="bg-white rounded-lg shadow-sm border overflow-hidden">
                 <img 
                   src={product.images?.[0]?.url || product.imageUrl}
@@ -554,6 +598,21 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
     });
   };
 
+  const handleProductsChange = (productIds: string[]) => {
+    handlePropertyChange("productIds", productIds);
+  };
+
+  // Check if a property should be shown based on conditions
+  const shouldShowProperty = (property: any) => {
+    if (!property.condition) return true;
+    
+    const conditionField = property.condition.field;
+    const conditionValue = property.condition.value;
+    const currentValue = component.props[conditionField];
+    
+    return currentValue === conditionValue;
+  };
+
   return (
     <div className="p-6">
       <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
@@ -562,7 +621,7 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
       </h3>
       
       <div className="space-y-4">
-        {componentDef.config.properties.map((property) => (
+        {componentDef.config.properties.filter(shouldShowProperty).map((property) => (
           <div key={property.name}>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {property.label}
@@ -595,10 +654,63 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
                 value={component.props[property.name] || ""}
                 onChange={(e) => handlePropertyChange(property.name, e.target.value)}
               >
+                <option value="">Select an option</option>
                 {(property as any).options.map((option: string) => (
                   <option key={option} value={option}>{option}</option>
                 ))}
               </select>
+            )}
+
+            {property.type === "shopify_collection" && (
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={component.props[property.name] || ""}
+                onChange={(e) => handlePropertyChange(property.name, e.target.value)}
+              >
+                <option value="">Select a collection</option>
+                {mockShopifyCollections.map((collection) => (
+                  <option key={collection.id} value={collection.id}>
+                    {collection.title} ({collection.productsCount} products)
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {property.type === "shopify_products" && (
+              <div>
+                <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md">
+                  {mockShopifyProducts.map((product) => (
+                    <label key={product.id} className="flex items-center p-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3"
+                        checked={(component.props[property.name] || []).includes(product.id)}
+                        onChange={(e) => {
+                          const currentIds = component.props[property.name] || [];
+                          const newIds = e.target.checked
+                            ? [...currentIds, product.id]
+                            : currentIds.filter((id: string) => id !== product.id);
+                          handleProductsChange(newIds);
+                        }}
+                      />
+                      <div className="flex items-center space-x-3 flex-1">
+                        <img 
+                          src={product.images[0]?.url} 
+                          alt={product.title}
+                          className="w-8 h-8 object-cover rounded"
+                        />
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-900 truncate">{product.title}</div>
+                          <div className="text-xs text-blue-600">{formatPrice(product.variants[0]?.price?.amount || "0")}</div>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-2 text-xs text-gray-500">
+                  {(component.props[property.name] || []).length} product(s) selected
+                </div>
+              </div>
             )}
             
             {property.type === "number" && (
