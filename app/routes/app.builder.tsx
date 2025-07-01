@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
-import { componentLibrary, generateId, cn } from "../lib/utils";
+import { componentLibrary, generateId, cn, mockShopifyProducts, formatPrice } from "../lib/utils";
 import { prisma } from "../db.server";
 import {
   DndContext,
@@ -119,23 +119,62 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       }
       
-      // Create the app page (template)
-      const newTemplate = await prisma.appPage.create({
-        data: {
-          appId: mobileApp.id,
-          name: templateName,
-          slug: templateName.toLowerCase().replace(/\s+/g, '-'),
-          type: 'CUSTOM',
-          components: {
-            create: pageComponents.map((comp: any, index: number) => ({
-              componentId: comp.componentId,
-              order: index,
-              props: comp.props,
-              styles: comp.styles || {}
-            }))
+      // Create or update the app page (template)
+      const slug = templateName.toLowerCase().replace(/\s+/g, '-');
+      
+      // Check if template already exists
+      const existingTemplate = await prisma.appPage.findUnique({
+        where: {
+          appId_slug: {
+            appId: mobileApp.id,
+            slug: slug
           }
         }
       });
+
+      let newTemplate;
+      
+      if (existingTemplate) {
+        // Delete existing page components first
+        await prisma.pageComponent.deleteMany({
+          where: { pageId: existingTemplate.id }
+        });
+        
+        // Update existing template
+        newTemplate = await prisma.appPage.update({
+          where: { id: existingTemplate.id },
+          data: {
+            name: templateName,
+            updatedAt: new Date(),
+            components: {
+              create: pageComponents.map((comp: any, index: number) => ({
+                componentId: comp.componentId,
+                order: index,
+                props: comp.props,
+                styles: comp.styles || {}
+              }))
+            }
+          }
+        });
+      } else {
+        // Create new template
+        newTemplate = await prisma.appPage.create({
+          data: {
+            appId: mobileApp.id,
+            name: templateName,
+            slug: slug,
+            type: 'CUSTOM',
+            components: {
+              create: pageComponents.map((comp: any, index: number) => ({
+                componentId: comp.componentId,
+                order: index,
+                props: comp.props,
+                styles: comp.styles || {}
+              }))
+            }
+          }
+        });
+      }
       
       return json({ 
         success: true, 
@@ -296,18 +335,132 @@ function ComponentPreview({ component }: { component: PageComponent }) {
   switch (componentDef.type) {
     case "BANNER":
       return (
-        <div className="relative">
-          <div 
-            className="w-full rounded bg-gray-200 flex items-center justify-center text-center p-6"
+        <div className="relative overflow-hidden rounded-lg">
+          <img 
+            src={component.props.imageUrl}
+            alt="Banner background"
+            className="w-full object-cover"
             style={{ height: component.props.height || "200px" }}
-          >
+          />
+          {component.props.overlay && (
+            <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+          )}
+          <div className="absolute inset-0 flex items-center justify-center text-center text-white p-6">
             <div>
-              <h3 className="font-bold text-lg">{component.props.title}</h3>
-              <p className="text-sm text-gray-600">{component.props.subtitle}</p>
-              <button className="mt-2 px-4 py-2 bg-blue-600 text-white rounded text-sm">
+              <h3 className="font-bold text-lg mb-2">{component.props.title}</h3>
+              <p className="text-sm mb-3 opacity-90">{component.props.subtitle}</p>
+              <button className="px-4 py-2 bg-white text-gray-900 rounded text-sm font-medium hover:bg-gray-100 transition-colors">
                 {component.props.buttonText}
               </button>
             </div>
+          </div>
+        </div>
+      );
+
+    case "CAROUSEL":
+      const carouselProducts = component.props.products || mockShopifyProducts.slice(0, 4);
+      return (
+        <div>
+          {component.props.title && (
+            <h3 className="font-bold text-lg mb-3">{component.props.title}</h3>
+          )}
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {carouselProducts.slice(0, component.props.itemsPerView || 2).map((product: any, index: number) => (
+              <div key={index} className="flex-shrink-0 w-32">
+                <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                  <img 
+                    src={product.images?.[0]?.url || product.imageUrl}
+                    alt={product.title}
+                    className="w-full h-24 object-cover"
+                  />
+                  <div className="p-2">
+                    <h4 className="font-medium text-xs truncate">{product.title}</h4>
+                    <p className="text-xs text-blue-600 font-semibold mt-1">
+                      {formatPrice(product.variants?.[0]?.price?.amount || "0")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "PRODUCT_GRID":
+      const gridProducts = component.props.products || mockShopifyProducts.slice(0, 6);
+      const columns = component.props.columns || 2;
+      return (
+        <div>
+          {component.props.title && (
+            <h3 className="font-bold text-lg mb-3">{component.props.title}</h3>
+          )}
+          <div 
+            className="grid gap-3"
+            style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+          >
+            {gridProducts.slice(0, columns * 2).map((product: any, index: number) => (
+              <div key={index} className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                <img 
+                  src={product.images?.[0]?.url || product.imageUrl}
+                  alt={product.title}
+                  className="w-full object-cover"
+                  style={{ aspectRatio: component.props.aspectRatio?.replace(":", "/") || "1/1" }}
+                />
+                <div className="p-3">
+                  <h4 className="font-medium text-sm truncate">{product.title}</h4>
+                  {component.props.showPrice && (
+                    <p className="text-sm text-blue-600 font-semibold mt-1">
+                      {formatPrice(product.variants?.[0]?.price?.amount || "0")}
+                      {product.variants?.[0]?.compareAtPrice && (
+                        <span className="text-xs text-gray-400 line-through ml-2">
+                          {formatPrice(product.variants[0].compareAtPrice.amount)}
+                        </span>
+                      )}
+                    </p>
+                  )}
+                  {component.props.showRating && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex text-yellow-400 text-xs">
+                        {"★".repeat(4)}{"☆".repeat(1)}
+                      </div>
+                      <span className="text-xs text-gray-500 ml-1">(24)</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "COUNTDOWN":
+      const endDate = new Date(component.props.endDate);
+      const now = new Date();
+      const timeDiff = Math.max(0, endDate.getTime() - now.getTime());
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+
+      return (
+        <div className="text-center p-4 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg">
+          {component.props.title && (
+            <h3 className="font-bold text-lg mb-3">{component.props.title}</h3>
+          )}
+          <div className="flex justify-center gap-4">
+            {[
+              { value: days, label: "Days" },
+              { value: hours, label: "Hours" },
+              { value: minutes, label: "Mins" },
+              { value: seconds, label: "Secs" }
+            ].map((item, index) => (
+              <div key={index} className="text-center">
+                <div className="text-2xl font-bold">{String(item.value).padStart(2, '0')}</div>
+                {component.props.showLabels && (
+                  <div className="text-xs opacity-80">{item.label}</div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       );
@@ -315,7 +468,7 @@ function ComponentPreview({ component }: { component: PageComponent }) {
     case "TEXT_BLOCK":
       return (
         <div 
-          className="prose prose-sm"
+          className="prose prose-sm max-w-none"
           style={{ 
             textAlign: component.props.textAlign,
             fontSize: component.props.fontSize,
@@ -329,14 +482,15 @@ function ComponentPreview({ component }: { component: PageComponent }) {
       return (
         <button 
           className={cn(
-            "rounded font-medium transition-colors",
-            component.props.variant === "primary" && "bg-blue-600 text-white",
-            component.props.variant === "secondary" && "bg-gray-600 text-white", 
-            component.props.variant === "outline" && "border border-gray-300 text-gray-700",
+            "rounded font-medium transition-colors inline-flex items-center",
+            component.props.variant === "primary" && "bg-blue-600 text-white hover:bg-blue-700",
+            component.props.variant === "secondary" && "bg-gray-600 text-white hover:bg-gray-700", 
+            component.props.variant === "outline" && "border border-gray-300 text-gray-700 hover:bg-gray-50",
+            component.props.variant === "ghost" && "text-blue-600 hover:bg-blue-50",
             component.props.size === "small" && "px-3 py-1 text-sm",
             component.props.size === "medium" && "px-4 py-2",
             component.props.size === "large" && "px-6 py-3 text-lg",
-            component.props.fullWidth && "w-full"
+            component.props.fullWidth && "w-full justify-center"
           )}
         >
           {component.props.icon && <span className="mr-2">{component.props.icon}</span>}
@@ -349,9 +503,9 @@ function ComponentPreview({ component }: { component: PageComponent }) {
         <img 
           src={component.props.imageUrl}
           alt={component.props.alt}
-          className="w-full"
+          className="w-full rounded"
           style={{
-            aspectRatio: component.props.aspectRatio.replace(":", "/"),
+            aspectRatio: component.props.aspectRatio?.replace(":", "/") || "16/9",
             objectFit: component.props.objectFit,
             borderRadius: component.props.borderRadius
           }}
@@ -361,7 +515,7 @@ function ComponentPreview({ component }: { component: PageComponent }) {
     case "SPACER":
       return (
         <div 
-          className="bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-500"
+          className="bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-500 rounded"
           style={{ height: component.props.height }}
         >
           Spacer ({component.props.height})
