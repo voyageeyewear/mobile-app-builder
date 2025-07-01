@@ -604,13 +604,18 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
 
   // Check if a property should be shown based on conditions
   const shouldShowProperty = (property: any) => {
-    if (!property.condition) return true;
+    console.log(`Checking property ${property.name}:`, property);
+    
+    if (!property.condition) {
+      console.log(`Property ${property.name} has no condition - showing`);
+      return true;
+    }
     
     const conditionField = property.condition.field;
     const conditionValue = property.condition.value;
     const currentValue = component.props[conditionField] || componentDef.defaultProps[conditionField];
     
-    console.log(`Checking condition for ${property.name}: ${conditionField} === ${conditionValue}, current: ${currentValue}`);
+    console.log(`Checking condition for ${property.name}: ${conditionField} === ${conditionValue}, current: ${currentValue}, result: ${currentValue === conditionValue}`);
     
     return currentValue === conditionValue;
   };
@@ -623,27 +628,24 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
       </h3>
       
       {/* Debug info - remove this later */}
-      {process.env.NODE_ENV === "development" && (
-        <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
-          <div><strong>Current dataSource:</strong> {component.props.dataSource || "undefined"}</div>
-          <div><strong>Default dataSource:</strong> {componentDef.defaultProps.dataSource || "undefined"}</div>
-          <div><strong>All props:</strong> {JSON.stringify(component.props, null, 2)}</div>
-        </div>
-      )}
+      <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
+        <div><strong>Current dataSource:</strong> {component.props.dataSource || "undefined"}</div>
+        <div><strong>Default dataSource:</strong> {componentDef.defaultProps.dataSource || "undefined"}</div>
+        <div><strong>Properties count:</strong> {componentDef.config.properties.length}</div>
+        <div><strong>Filtered properties count:</strong> {componentDef.config.properties.filter(shouldShowProperty).length}</div>
+      </div>
       
       <div className="space-y-4">
         {/* Debug: Show all properties being checked */}
-        {process.env.NODE_ENV === "development" && (
-          <div className="mb-2 p-2 bg-yellow-100 rounded text-xs">
-            <div><strong>All properties:</strong></div>
-            {componentDef.config.properties.map(prop => (
-              <div key={prop.name}>
-                {prop.name} ({prop.type}) - Show: {shouldShowProperty(prop) ? "YES" : "NO"}
-                {prop.condition && ` [Condition: ${prop.condition.field} === ${prop.condition.value}]`}
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="mb-2 p-2 bg-yellow-100 rounded text-xs">
+          <div><strong>All properties:</strong></div>
+          {componentDef.config.properties.map(prop => (
+            <div key={prop.name}>
+              {prop.name} ({prop.type}) - Show: {shouldShowProperty(prop) ? "YES" : "NO"}
+              {prop.condition && ` [Condition: ${prop.condition.field} === ${prop.condition.value}]`}
+            </div>
+          ))}
+        </div>
         
         {componentDef.config.properties.filter(shouldShowProperty).map((property) => (
           <div key={property.name}>
