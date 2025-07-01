@@ -240,6 +240,95 @@ export function getRandomBannerImage(): string {
 
 export const componentLibrary = [
   {
+    id: "mobile-header",
+    name: "Mobile Header",
+    type: "MOBILE_HEADER",
+    category: "Layout",
+    icon: "📱",
+    description: "Clean mobile app header with logo, search, and navigation",
+    defaultProps: {
+      // Logo
+      logoText: "oe",
+      logoSize: 40,
+      logoColor: "#FFFFFF",
+      
+      // Colors
+      backgroundColor: "#4A5568",
+      iconColor: "#FFFFFF",
+      textColor: "#FFFFFF",
+      
+      // Offer button
+      showOfferButton: true,
+      offerButtonText: "50% OFF",
+      offerButtonColor: "#FC8181",
+      
+      // Icons
+      showMenuIcon: true,
+      showWishlistIcon: true,
+      showAccountIcon: true,
+      showCartIcon: true,
+      showCartBadge: true,
+      cartBadgeCount: 3,
+      cartBadgeColor: "#EF4444",
+      
+      // Search
+      searchPlaceholder: "Free Cash on Delivery",
+      searchBackgroundColor: "#F7FAFC",
+      searchTextColor: "#4A5568",
+      
+      // Navigation
+      showNavTabs: true,
+      navBackgroundColor: "#4A5568",
+      navTextColor: "#CBD5E0",
+      navActiveColor: "#FFFFFF",
+      
+      // Simple navigation items
+      nav1Title: "All",
+      nav1Active: true,
+      nav2Title: "Classic", 
+      nav2Active: false,
+      nav3Title: "Essentials",
+      nav3Active: false,
+      nav4Title: "Premium",
+      nav4Active: false
+    },
+    config: {
+      properties: [
+        { name: "logoText", type: "text", label: "Logo Text" },
+        { name: "logoSize", type: "number", label: "Logo Size (px)" },
+        { name: "logoColor", type: "color", label: "Logo Color" },
+        { name: "backgroundColor", type: "color", label: "Background Color" },
+        { name: "iconColor", type: "color", label: "Icon Color" },
+        { name: "textColor", type: "color", label: "Text Color" },
+        { name: "showOfferButton", type: "boolean", label: "Show Offer Button" },
+        { name: "offerButtonText", type: "text", label: "Offer Button Text" },
+        { name: "offerButtonColor", type: "color", label: "Offer Button Color" },
+        { name: "showMenuIcon", type: "boolean", label: "Show Menu Icon" },
+        { name: "showWishlistIcon", type: "boolean", label: "Show Wishlist Icon" },
+        { name: "showAccountIcon", type: "boolean", label: "Show Account Icon" },
+        { name: "showCartIcon", type: "boolean", label: "Show Cart Icon" },
+        { name: "showCartBadge", type: "boolean", label: "Show Cart Badge" },
+        { name: "cartBadgeCount", type: "number", label: "Cart Badge Count" },
+        { name: "cartBadgeColor", type: "color", label: "Cart Badge Color" },
+        { name: "searchPlaceholder", type: "text", label: "Search Placeholder" },
+        { name: "searchBackgroundColor", type: "color", label: "Search Background" },
+        { name: "searchTextColor", type: "color", label: "Search Text Color" },
+        { name: "showNavTabs", type: "boolean", label: "Show Navigation Tabs" },
+        { name: "navBackgroundColor", type: "color", label: "Nav Background" },
+        { name: "navTextColor", type: "color", label: "Nav Text Color" },
+        { name: "navActiveColor", type: "color", label: "Nav Active Color" },
+        { name: "nav1Title", type: "text", label: "Nav Item 1 Title" },
+        { name: "nav1Active", type: "boolean", label: "Nav Item 1 Active" },
+        { name: "nav2Title", type: "text", label: "Nav Item 2 Title" },
+        { name: "nav2Active", type: "boolean", label: "Nav Item 2 Active" },
+        { name: "nav3Title", type: "text", label: "Nav Item 3 Title" },
+        { name: "nav3Active", type: "boolean", label: "Nav Item 3 Active" },
+        { name: "nav4Title", type: "text", label: "Nav Item 4 Title" },
+        { name: "nav4Active", type: "boolean", label: "Nav Item 4 Active" }
+      ]
+    }
+  },
+  {
     id: "banner",
     name: "Banner",
     type: "BANNER",
@@ -268,6 +357,42 @@ export const componentLibrary = [
     }
   },
   {
+    id: "featured-collection",
+    name: "Featured Collection",
+    type: "FEATURED_COLLECTION",
+    category: "Products",
+    icon: "⭐",
+    description: "Showcase a featured product collection with customizable layout",
+    defaultProps: {
+      title: "Featured Collection",
+      description: "Check out our best products",
+      dataSource: "collection",
+      collectionId: "",
+      specificProducts: [],
+      layout: "grid",
+      itemsToShow: 4,
+      showPrices: true,
+      showRatings: true,
+      actionButtonText: "View All",
+      actionButtonLink: "/collections/featured"
+    },
+    config: {
+      properties: [
+        { name: "title", type: "text", label: "Collection Title" },
+        { name: "description", type: "text", label: "Description" },
+        { name: "dataSource", type: "select", label: "Data Source", options: ["collection", "specific"] },
+        { name: "collectionId", type: "shopify_collection", label: "Select Collection", condition: { field: "dataSource", value: "collection" } },
+        { name: "specificProducts", type: "shopify_products", label: "Select Products", condition: { field: "dataSource", value: "specific" } },
+        { name: "layout", type: "select", label: "Layout Style", options: ["grid", "list", "carousel"] },
+        { name: "itemsToShow", type: "number", label: "Items to Show", min: 1, max: 10 } as any,
+        { name: "showPrices", type: "boolean", label: "Show Prices" },
+        { name: "showRatings", type: "boolean", label: "Show Ratings" },
+        { name: "actionButtonText", type: "text", label: "Action Button Text" },
+        { name: "actionButtonLink", type: "text", label: "Action Button Link" }
+      ]
+    }
+  },
+  {
     id: "carousel",
     name: "Product Carousel",
     type: "CAROUSEL", 
@@ -282,8 +407,7 @@ export const componentLibrary = [
       spacing: "16px",
       dataSource: "mock", // "mock", "collection", "products"
       collectionId: "",
-      productIds: [],
-      products: getRandomProducts(4)
+      productIds: []
     },
     config: {
       properties: [
@@ -335,8 +459,7 @@ export const componentLibrary = [
       aspectRatio: "1:1",
       dataSource: "mock", // "mock", "collection", "products"
       collectionId: "",
-      productIds: [],
-      products: getRandomProducts(6)
+      productIds: []
     },
     config: {
       properties: [

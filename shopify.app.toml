@@ -3,31 +3,23 @@
 client_id = "46e3839f24818638319c72bab3ffb1fc"
 name = "app-builder"
 handle = "app-builder-25"
-application_url = "https://lobby-james-rid-walked.trycloudflare.com"
+application_url = "https://confused-wires-lose-seller.trycloudflare.com"
 embedded = true
 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = true
+include_config_on_deploy = true
 
 [webhooks]
 api_version = "2025-04"
-
-  [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks/app/uninstalled"
 
   [[webhooks.subscriptions]]
   topics = [ "app/scopes_update" ]
   uri = "/webhooks/app/scopes_update"
 
   [[webhooks.subscriptions]]
-  topics = [ "products/create", "products/update", "products/delete" ]
-  uri = "/webhooks/products/update"
-
-  [[webhooks.subscriptions]]
-  topics = [ "orders/create", "orders/updated", "orders/paid" ]
-  uri = "/webhooks/orders/update"
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
 
   [[webhooks.subscriptions]]
   topics = [ "customers/create", "customers/update" ]
@@ -37,12 +29,20 @@ api_version = "2025-04"
   topics = [ "inventory_levels/update" ]
   uri = "/webhooks/inventory/update"
 
+  [[webhooks.subscriptions]]
+  topics = [ "orders/create", "orders/paid", "orders/updated" ]
+  uri = "/webhooks/orders/update"
+
+  [[webhooks.subscriptions]]
+  topics = [ "products/create", "products/delete", "products/update" ]
+  uri = "/webhooks/products/update"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,read_products,write_orders,read_orders,write_customers,read_customers,read_inventory,write_inventory,read_themes,write_themes,read_content,write_content,read_files,write_files,read_analytics,read_discounts,write_discounts"
+scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://lobby-james-rid-walked.trycloudflare.com/auth/callback", "https://lobby-james-rid-walked.trycloudflare.com/auth/shopify/callback", "https://lobby-james-rid-walked.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://confused-wires-lose-seller.trycloudflare.com/auth/callback", "https://confused-wires-lose-seller.trycloudflare.com/auth/shopify/callback", "https://confused-wires-lose-seller.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
