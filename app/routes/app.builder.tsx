@@ -620,6 +620,15 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
         {componentDef.name}
       </h3>
       
+      {/* Debug info - remove this later */}
+      {process.env.NODE_ENV === "development" && (
+        <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
+          <div><strong>Current dataSource:</strong> {component.props.dataSource || "undefined"}</div>
+          <div><strong>Default dataSource:</strong> {componentDef.defaultProps.dataSource || "undefined"}</div>
+          <div><strong>All props:</strong> {JSON.stringify(component.props, null, 2)}</div>
+        </div>
+      )}
+      
       <div className="space-y-4">
         {componentDef.config.properties.filter(shouldShowProperty).map((property) => (
           <div key={property.name}>
@@ -651,12 +660,16 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
             {property.type === "select" && (property as any).options && (
               <select
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={component.props[property.name] || ""}
+                value={component.props[property.name] || componentDef.defaultProps[property.name] || ""}
                 onChange={(e) => handlePropertyChange(property.name, e.target.value)}
               >
-                <option value="">Select an option</option>
+                {!component.props[property.name] && !componentDef.defaultProps[property.name] && (
+                  <option value="">Select an option</option>
+                )}
                 {(property as any).options.map((option: string) => (
-                  <option key={option} value={option}>{option}</option>
+                  <option key={option} value={option}>
+                    {option.charAt(0).toUpperCase() + option.slice(1)}
+                  </option>
                 ))}
               </select>
             )}
@@ -787,7 +800,11 @@ export default function AppBuilder() {
           id: generateId(),
           componentId: componentId,
           type: componentDef.type,
-          props: { ...componentDef.defaultProps },
+          props: { 
+            ...componentDef.defaultProps,
+            // Ensure dataSource is explicitly set for product components
+            ...(componentDef.type === "CAROUSEL" || componentDef.type === "PRODUCT_GRID" ? { dataSource: "mock" } : {})
+          },
           order: pageComponents.length
         };
         
@@ -991,7 +1008,11 @@ export default function AppBuilder() {
                             id: generateId(),
                             componentId: componentId,
                             type: componentDef.type,
-                            props: { ...componentDef.defaultProps },
+                            props: { 
+                              ...componentDef.defaultProps,
+                              // Ensure dataSource is explicitly set for product components
+                              ...(componentDef.type === "CAROUSEL" || componentDef.type === "PRODUCT_GRID" ? { dataSource: "mock" } : {})
+                            },
                             order: pageComponents.length
                           };
                           setPageComponents(prev => [...prev, newComponent]);
