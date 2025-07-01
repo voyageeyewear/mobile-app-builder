@@ -608,7 +608,9 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
     
     const conditionField = property.condition.field;
     const conditionValue = property.condition.value;
-    const currentValue = component.props[conditionField];
+    const currentValue = component.props[conditionField] || componentDef.defaultProps[conditionField];
+    
+    console.log(`Checking condition for ${property.name}: ${conditionField} === ${conditionValue}, current: ${currentValue}`);
     
     return currentValue === conditionValue;
   };
@@ -630,6 +632,19 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
       )}
       
       <div className="space-y-4">
+        {/* Debug: Show all properties being checked */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="mb-2 p-2 bg-yellow-100 rounded text-xs">
+            <div><strong>All properties:</strong></div>
+            {componentDef.config.properties.map(prop => (
+              <div key={prop.name}>
+                {prop.name} ({prop.type}) - Show: {shouldShowProperty(prop) ? "YES" : "NO"}
+                {prop.condition && ` [Condition: ${prop.condition.field} === ${prop.condition.value}]`}
+              </div>
+            ))}
+          </div>
+        )}
+        
         {componentDef.config.properties.filter(shouldShowProperty).map((property) => (
           <div key={property.name}>
             <label className="block text-sm font-medium text-gray-700 mb-1">
