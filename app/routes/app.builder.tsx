@@ -464,15 +464,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     } catch (error) {
       console.error("❌ Error saving template:", error);
+      const errorDetails = error as Error;
       console.error("❌ Error details:", {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        cause: error.cause
+        name: errorDetails.name,
+        message: errorDetails.message,
+        stack: errorDetails.stack,
+        cause: (errorDetails as any).cause
       });
       return json({ 
         success: false, 
-        message: `Failed to save template: ${error.message}` 
+        message: `Failed to save template: ${errorDetails.message}` 
       });
     }
   }
@@ -572,9 +573,10 @@ interface DroppableComponentProps {
   isSelected: boolean;
   shopifyProducts: any[];
   shopifyCollections: any[];
+  onToggleDrawer?: () => void;
 }
 
-function DroppableComponent({ component, onSelect, isSelected, shopifyProducts, shopifyCollections }: DroppableComponentProps) {
+function DroppableComponent({ component, onSelect, isSelected, shopifyProducts, shopifyCollections, onToggleDrawer }: DroppableComponentProps) {
   const {
     attributes,
     listeners,
@@ -613,6 +615,7 @@ function DroppableComponent({ component, onSelect, isSelected, shopifyProducts, 
           component={component} 
           shopifyProducts={shopifyProducts || []} 
           shopifyCollections={shopifyCollections || []} 
+          onToggleDrawer={onToggleDrawer}
         />
       </div>
     );
@@ -646,16 +649,18 @@ function DroppableComponent({ component, onSelect, isSelected, shopifyProducts, 
           component={component} 
           shopifyProducts={shopifyProducts || []} 
           shopifyCollections={shopifyCollections || []} 
+          onToggleDrawer={onToggleDrawer}
         />
       </div>
     </div>
   );
 }
 
-function ComponentPreview({ component, shopifyProducts, shopifyCollections }: { 
+function ComponentPreview({ component, shopifyProducts, shopifyCollections, onToggleDrawer }: { 
   component: PageComponent; 
   shopifyProducts: any[]; 
   shopifyCollections: any[];
+  onToggleDrawer?: () => void;
 }) {
   const componentDef = componentLibrary.find(c => c.id === component.componentId);
   
@@ -663,78 +668,114 @@ function ComponentPreview({ component, shopifyProducts, shopifyCollections }: {
 
   switch (componentDef.type) {
     case "MOBILE_HEADER":
+      // Get component definition for fallbacks
+      const headerDef = componentLibrary.find(c => c.id === "mobile-header");
+      const getHeaderProp = (propName: string) => {
+        const value = component.props[propName] !== undefined ? component.props[propName] : headerDef?.defaultProps[propName];
+        // Debug key properties including logo image properties
+        if (propName === "logoText" || propName === "showOfferButton" || propName === "showLogoImage" || propName === "logoImage") {
+          console.log(`🎨 ComponentPreview - ${propName}:`, {
+            componentProps: component.props[propName],
+            defaultValue: headerDef?.defaultProps[propName],
+            finalValue: value,
+            shouldShowImage: component.props["showLogoImage"] && component.props["logoImage"],
+            allProps: component.props
+          });
+        }
+        return value;
+      };
+
       return (
         <div 
-          className="w-full"
+          className="w-full relative"
           style={{ 
-            backgroundColor: component.props.backgroundColor || "#4A5568",
-            color: component.props.textColor || "#FFFFFF"
+            backgroundColor: getHeaderProp("backgroundColor") || "#4A5568",
+            color: getHeaderProp("textColor") || "#FFFFFF"
           }}
         >
+
           {/* Top header bar */}
           <div className="flex items-center justify-between px-4 py-3">
             {/* Left side - Menu + Offer Button */}
             <div className="flex items-center gap-3">
-              {component.props.showMenuIcon && (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 12H21M3 6H21M3 18H21" stroke={component.props.iconColor || "#FFFFFF"} strokeWidth="2" strokeLinecap="round"/>
-                </svg>
+              {getHeaderProp("showMenuIcon") && (
+                <button
+                  onClick={() => onToggleDrawer?.()}
+                  className="p-1 hover:bg-black hover:bg-opacity-10 rounded transition-colors"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 12H21M3 6H21M3 18H21" stroke={getHeaderProp("iconColor") || "#FFFFFF"} strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </button>
               )}
-              {component.props.showOfferButton && (
+              {getHeaderProp("showOfferButton") && (
                 <div 
                   className="px-3 py-1.5 rounded-full text-white text-sm font-semibold flex items-center gap-2"
                   style={{ 
-                    backgroundColor: component.props.offerButtonColor || "#FC8181",
+                    backgroundColor: getHeaderProp("offerButtonColor") || "#FC8181",
                     boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
                   }}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 8V13M12 8V6C12 5.44772 12.4477 5 13 5H14C14.5523 5 15 5.44772 15 6V8H12ZM12 8H9.5C8.67157 8 8 8.67157 8 9.5C8 10.3284 8.67157 11 9.5 11H12M12 13H14.5C15.3284 13 16 13.6716 16 14.5C16 15.3284 15.3284 16 14.5 16H12M12 13V16M5 12C5 12.5523 5.44772 13 6 13H18C18.5523 13 19 12.5523 19 12C19 11.4477 18.5523 11 18 11H6C5.44772 11 5 11.4477 5 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                   </svg>
-                  <span>{component.props.offerButtonText || "50% OFF"}</span>
+                  <span>{getHeaderProp("offerButtonText") || "50% OFF"}</span>
                 </div>
               )}
             </div>
 
             {/* Center - Logo */}
-            <div className="flex items-center">
-              <span 
-                style={{ 
-                  fontSize: `${component.props.logoSize || 40}px`, 
-                  fontWeight: '700',
-                  color: component.props.logoColor || "#FFFFFF"
-                }}
-              >
-                {component.props.logoText || "oe"}
-              </span>
+            <div className="flex items-center justify-center flex-1">
+              {getHeaderProp("showLogoImage") && getHeaderProp("logoImage") ? (
+                <img
+                  src={getHeaderProp("logoImage")}
+                  alt="Logo"
+                  style={{
+                    height: `${getHeaderProp("logoSize") || 40}px`,
+                    width: 'auto',
+                    maxWidth: '120px',
+                    objectFit: 'contain'
+                  }}
+                />
+              ) : (
+                <span 
+                  style={{ 
+                    fontSize: `${getHeaderProp("logoSize") || 40}px`, 
+                    fontWeight: '700',
+                    color: getHeaderProp("logoColor") || "#FFFFFF"
+                  }}
+                >
+                  {getHeaderProp("logoText") || "oe"}
+                </span>
+              )}
             </div>
 
             {/* Right side - Icons */}
             <div className="flex items-center gap-4">
-              {component.props.showWishlistIcon && (
+              {getHeaderProp("showWishlistIcon") && (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.57831 8.50903 2.99871 7.05 2.99871C5.59096 2.99871 4.19169 3.57831 3.16 4.61C2.1283 5.64169 1.54871 7.04096 1.54871 8.5C1.54871 9.95903 2.1283 11.3583 3.16 12.39L12 21.23L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.12087 20.84 4.61V4.61Z" stroke={component.props.iconColor || "#FFFFFF"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.57831 8.50903 2.99871 7.05 2.99871C5.59096 2.99871 4.19169 3.57831 3.16 4.61C2.1283 5.64169 1.54871 7.04096 1.54871 8.5C1.54871 9.95903 2.1283 11.3583 3.16 12.39L12 21.23L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.12087 20.84 4.61V4.61Z" stroke={getHeaderProp("iconColor") || "#FFFFFF"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               )}
               
-              {component.props.showAccountIcon && (
+              {getHeaderProp("showAccountIcon") && (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke={component.props.iconColor || "#FFFFFF"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="12" cy="7" r="4" stroke={component.props.iconColor || "#FFFFFF"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke={getHeaderProp("iconColor") || "#FFFFFF"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="12" cy="7" r="4" stroke={getHeaderProp("iconColor") || "#FFFFFF"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               )}
 
-              {component.props.showCartIcon && (
+              {getHeaderProp("showCartIcon") && (
                 <div className="relative">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M3 3H5L5.4 5M7 13H17L21 5H5.4M7 13L5.4 5M7 13L4.7 15.3C4.3 15.7 4.6 16.4 5.1 16.4H17M17 13V16.4M9 19.5C9.8 19.5 10.5 20.2 10.5 21S9.8 22.5 9 22.5 7.5 21.8 7.5 21 8.2 19.5 9 19.5ZM20 19.5C20.8 19.5 21.5 20.2 21.5 21S20.8 22.5 20 22.5 18.5 21.8 18.5 21 19.2 19.5 20 19.5Z" stroke={component.props.iconColor || "#FFFFFF"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M3 3H5L5.4 5M7 13H17L21 5H5.4M7 13L5.4 5M7 13L4.7 15.3C4.3 15.7 4.6 16.4 5.1 16.4H17M17 13V16.4M9 19.5C9.8 19.5 10.5 20.2 10.5 21S9.8 22.5 9 22.5 7.5 21.8 7.5 21 8.2 19.5 9 19.5ZM20 19.5C20.8 19.5 21.5 20.2 21.5 21S20.8 22.5 20 22.5 18.5 21.8 18.5 21 19.2 19.5 20 19.5Z" stroke={getHeaderProp("iconColor") || "#FFFFFF"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  {component.props.showCartBadge && component.props.cartBadgeCount > 0 && (
+                  {getHeaderProp("showCartBadge") && getHeaderProp("cartBadgeCount") > 0 && (
                     <span 
                       className="absolute -top-2 -right-2 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold"
-                      style={{ backgroundColor: component.props.cartBadgeColor || "#EF4444", fontSize: '10px' }}
+                      style={{ backgroundColor: getHeaderProp("cartBadgeColor") || "#EF4444", fontSize: '10px' }}
                     >
-                      {component.props.cartBadgeCount > 99 ? '99+' : component.props.cartBadgeCount}
+                      {getHeaderProp("cartBadgeCount") > 99 ? '99+' : getHeaderProp("cartBadgeCount")}
                     </span>
                   )}
                 </div>
@@ -747,11 +788,11 @@ function ComponentPreview({ component, shopifyProducts, shopifyCollections }: {
             <div className="relative">
               <input
                 type="text"
-                placeholder={component.props.searchPlaceholder || "Free Cash on Delivery"}
+                placeholder={getHeaderProp("searchPlaceholder") || "Free Cash on Delivery"}
                 className="w-full px-4 py-2.5 rounded-lg text-sm border-0 outline-none"
                 style={{ 
-                  backgroundColor: component.props.searchBackgroundColor || "#F7FAFC",
-                  color: component.props.searchTextColor || "#4A5568"
+                  backgroundColor: getHeaderProp("searchBackgroundColor") || "#F7FAFC",
+                  color: getHeaderProp("searchTextColor") || "#4A5568"
                 }}
                 readOnly
               />
@@ -765,34 +806,34 @@ function ComponentPreview({ component, shopifyProducts, shopifyCollections }: {
           </div>
 
           {/* Navigation tabs */}
-          {component.props.showNavTabs && (
+          {getHeaderProp("showNavTabs") && (
             <div 
               className="flex items-center px-2 pb-1"
-              style={{ backgroundColor: component.props.navBackgroundColor || "#4A5568" }}
+              style={{ backgroundColor: getHeaderProp("navBackgroundColor") || "#4A5568" }}
             >
               {[
                 { 
-                  title: component.props.nav1Title || "All", 
-                  active: component.props.nav1Active ?? true
+                  title: getHeaderProp("nav1Title") || "All", 
+                  active: getHeaderProp("nav1Active") ?? true
                 },
                 { 
-                  title: component.props.nav2Title || "Classic", 
-                  active: component.props.nav2Active ?? false
+                  title: getHeaderProp("nav2Title") || "Classic", 
+                  active: getHeaderProp("nav2Active") ?? false
                 },
                 { 
-                  title: component.props.nav3Title || "Essentials", 
-                  active: component.props.nav3Active ?? false
+                  title: getHeaderProp("nav3Title") || "Essentials", 
+                  active: getHeaderProp("nav3Active") ?? false
                 },
                 { 
-                  title: component.props.nav4Title || "Premium", 
-                  active: component.props.nav4Active ?? false
+                  title: getHeaderProp("nav4Title") || "Premium", 
+                  active: getHeaderProp("nav4Active") ?? false
                 }
               ].map((item: any, index: number) => (
                 <div key={index} className="flex-1 relative">
                   <div 
                     className="flex items-center justify-center py-3 px-2 text-sm font-medium relative"
                     style={{ 
-                      color: item.active ? (component.props.navActiveColor || "#FFFFFF") : (component.props.navTextColor || "#CBD5E0") 
+                      color: item.active ? (getHeaderProp("navActiveColor") || "#FFFFFF") : (getHeaderProp("navTextColor") || "#CBD5E0") 
                     }}
                   >
                     <span>{item.title}</span>
@@ -801,7 +842,7 @@ function ComponentPreview({ component, shopifyProducts, shopifyCollections }: {
                     {item.active && (
                       <div 
                         className="absolute bottom-0 left-0 right-0 h-0.5"
-                        style={{ backgroundColor: component.props.navActiveColor || "#FFFFFF" }}
+                        style={{ backgroundColor: getHeaderProp("navActiveColor") || "#FFFFFF" }}
                       />
                     )}
                   </div>
@@ -1198,6 +1239,18 @@ interface PropertyEditorProps {
 
 function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
   const { shopifyProducts, shopifyCollections } = useLoaderData<typeof loader>();
+  const [localTextValues, setLocalTextValues] = useState<Record<string, string>>({});
+  const [localNumberValues, setLocalNumberValues] = useState<Record<string, string>>({});
+  const [localColorValues, setLocalColorValues] = useState<Record<string, string>>({});
+  const [localBooleanValues, setLocalBooleanValues] = useState<Record<string, boolean>>({});
+  
+  // Reset local values when component changes
+  useEffect(() => {
+    setLocalTextValues({});
+    setLocalNumberValues({});
+    setLocalColorValues({});
+    setLocalBooleanValues({});
+  }, [component?.id]);
   
   // Debug: Log what data we're receiving
   console.log("🔍 PropertyEditor - Shopify Products:", shopifyProducts);
@@ -1220,6 +1273,28 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
   }
 
   const handlePropertyChange = (propertyName: string, value: any) => {
+    console.log("🔧 PropertyEditor - Property Change:", {
+      componentId: component.id,
+      componentType: component.componentId,
+      propertyName,
+      oldValue: component.props[propertyName],
+      newValue: value,
+      allProps: component.props,
+      isLogoImage: propertyName === 'logoImage'
+    });
+    
+    // Additional debug for logo image
+    if (propertyName === 'logoImage') {
+      console.log("🖼️ LOGO IMAGE PROPERTY UPDATE:", {
+        oldUrl: component.props[propertyName],
+        newUrl: value,
+        updateData: {
+          ...component.props,
+          [propertyName]: value
+        }
+      });
+    }
+    
     onUpdate(component.id, {
       ...component.props,
       [propertyName]: value
@@ -1228,6 +1303,120 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
 
   const handleProductsChange = (productIds: string[]) => {
     handlePropertyChange("productIds", productIds);
+  };
+
+  // Helper functions for local text input handling
+  const handleTextInputChange = (propertyName: string, value: string) => {
+    console.log("📝 Local Text Input Change:", {
+      propertyName,
+      value,
+      componentId: component.id,
+      isLogoImage: propertyName === 'logoImage'
+    });
+    
+    // Update local state immediately for responsive UI
+    setLocalTextValues(prev => ({ ...prev, [propertyName]: value }));
+    
+    // Update the actual component props
+    handlePropertyChange(propertyName, value);
+    
+    // Additional debug for logo image
+    if (propertyName === 'logoImage') {
+      console.log("🖼️ Logo Image URL Set:", {
+        url: value,
+        willShowPreview: !!value
+      });
+    }
+  };
+
+  const getTextInputValue = (propertyName: string, componentDef: any) => {
+    // Use local value if it exists, otherwise use component prop, otherwise use default
+    if (localTextValues[propertyName] !== undefined) {
+      return localTextValues[propertyName];
+    }
+    if (component.props[propertyName] !== undefined) {
+      return String(component.props[propertyName]);
+    }
+    return String(componentDef.defaultProps[propertyName] || "");
+  };
+
+  // Helper functions for number input handling
+  const handleNumberInputChange = (propertyName: string, value: string) => {
+    console.log("🔢 Local Number Input Change:", {
+      propertyName,
+      value,
+      componentId: component.id
+    });
+    
+    // Update local state immediately for responsive UI
+    setLocalNumberValues(prev => ({ ...prev, [propertyName]: value }));
+    
+    // Update the actual component props with parsed number
+    const numValue = value === "" ? undefined : parseInt(value);
+    handlePropertyChange(propertyName, numValue);
+  };
+
+  const getNumberInputValue = (propertyName: string, componentDef: any) => {
+    // Use local value if it exists, otherwise use component prop, otherwise use default
+    if (localNumberValues[propertyName] !== undefined) {
+      return localNumberValues[propertyName];
+    }
+    if (component.props[propertyName] !== undefined) {
+      return String(component.props[propertyName]);
+    }
+    return String(componentDef.defaultProps[propertyName] || "");
+  };
+
+  // Helper functions for color input handling
+  const handleColorInputChange = (propertyName: string, value: string) => {
+    console.log("🎨 Local Color Input Change:", {
+      propertyName,
+      value,
+      componentId: component.id
+    });
+    
+    // Update local state immediately for responsive UI
+    setLocalColorValues(prev => ({ ...prev, [propertyName]: value }));
+    
+    // Update the actual component props
+    handlePropertyChange(propertyName, value);
+  };
+
+  const getColorInputValue = (propertyName: string, componentDef: any) => {
+    // Use local value if it exists, otherwise use component prop, otherwise use default
+    if (localColorValues[propertyName] !== undefined) {
+      return localColorValues[propertyName];
+    }
+    if (component.props[propertyName] !== undefined) {
+      return String(component.props[propertyName]);
+    }
+    return String(componentDef.defaultProps[propertyName] || "#000000");
+  };
+
+  // Helper functions for boolean input handling
+  const handleBooleanInputChange = (propertyName: string, value: boolean) => {
+    console.log("☑️ Local Boolean Input Change:", {
+      propertyName,
+      value,
+      componentId: component.id
+    });
+    
+    // Update local state immediately for responsive UI
+    setLocalBooleanValues(prev => ({ ...prev, [propertyName]: value }));
+    
+    // Update the actual component props
+    handlePropertyChange(propertyName, value);
+  };
+
+  const getBooleanInputValue = (propertyName: string, componentDef: any) => {
+    // Use local value if it exists, otherwise use component prop, otherwise use default
+    if (localBooleanValues[propertyName] !== undefined) {
+      return localBooleanValues[propertyName];
+    }
+    if (component.props[propertyName] !== undefined) {
+      return Boolean(component.props[propertyName]);
+    }
+    return Boolean(componentDef.defaultProps[propertyName] || false);
   };
 
   // Check if a property should be shown based on conditions
@@ -1239,10 +1428,30 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
     const conditionField = property.condition.field;
     const conditionValue = property.condition.value;
     
-    // Get current value from component props, falling back to default props
-    let currentValue = component.props[conditionField];
-    if (currentValue === undefined || currentValue === null) {
+    // Get current value - check local state first, then component props, then default props
+    let currentValue;
+    
+    // For boolean conditions, check local boolean state first
+    if (localBooleanValues[conditionField] !== undefined) {
+      currentValue = localBooleanValues[conditionField];
+    } else if (component.props[conditionField] !== undefined) {
+      currentValue = component.props[conditionField];
+    } else {
       currentValue = componentDef.defaultProps[conditionField];
+    }
+    
+    // Debug logging for logoImage property specifically
+    if (property.name === "logoImage") {
+      console.log("🔍 shouldShowProperty DEBUG for logoImage:", {
+        propertyName: property.name,
+        conditionField,
+        conditionValue,
+        currentValue,
+        localBooleanValue: localBooleanValues[conditionField],
+        componentProps: component.props[conditionField],
+        defaultProps: componentDef.defaultProps[conditionField],
+        result: currentValue === conditionValue
+      });
     }
     
     return currentValue === conditionValue;
@@ -1274,8 +1483,8 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
               <input
                 type="text"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={component.props[property.name] || ""}
-                onChange={(e) => handlePropertyChange(property.name, e.target.value)}
+                value={getTextInputValue(property.name, componentDef)}
+                onChange={(e) => handleTextInputChange(property.name, e.target.value)}
                 placeholder={`Enter ${property.label.toLowerCase()}...`}
               />
             )}
@@ -1285,8 +1494,8 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
                 <input
                   type="checkbox"
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  checked={component.props[property.name] || false}
-                  onChange={(e) => handlePropertyChange(property.name, e.target.checked)}
+                  checked={getBooleanInputValue(property.name, componentDef)}
+                  onChange={(e) => handleBooleanInputChange(property.name, e.target.checked)}
                 />
                 <span className="ml-3 text-sm text-gray-700 font-medium">Enable {property.label}</span>
               </label>
@@ -1402,11 +1611,12 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
             {property.type === "number" && (
               <input
                 type="number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={component.props[property.name] || ""}
-                onChange={(e) => handlePropertyChange(property.name, parseInt(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                value={getNumberInputValue(property.name, componentDef)}
+                onChange={(e) => handleNumberInputChange(property.name, e.target.value)}
                 min={(property as any).min}
                 max={(property as any).max}
+                placeholder={`Enter ${property.label.toLowerCase()}...`}
               />
             )}
             
@@ -1426,14 +1636,14 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
                   <input
                     type="color"
                     className="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer"
-                    value={component.props[property.name] || "#000000"}
-                    onChange={(e) => handlePropertyChange(property.name, e.target.value)}
+                    value={getColorInputValue(property.name, componentDef)}
+                    onChange={(e) => handleColorInputChange(property.name, e.target.value)}
                   />
                   <input
                     type="text"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors font-mono text-sm"
-                    value={component.props[property.name] || "#000000"}
-                    onChange={(e) => handlePropertyChange(property.name, e.target.value)}
+                    value={getColorInputValue(property.name, componentDef)}
+                    onChange={(e) => handleColorInputChange(property.name, e.target.value)}
                     placeholder="#000000"
                   />
                 </div>
@@ -1446,8 +1656,8 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
                   <input
                     type="text"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    value={component.props[property.name] || ""}
-                    onChange={(e) => handlePropertyChange(property.name, e.target.value)}
+                    value={getTextInputValue(property.name, componentDef)}
+                    onChange={(e) => handleTextInputChange(property.name, e.target.value)}
                     placeholder="Enter image URL or browse from Shopify..."
                   />
                   <button
@@ -1464,18 +1674,17 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
                             <button class="close-modal text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
                           </div>
                           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4" id="shopify-images">
-                            ${(shopifyProducts || []).map((product: any) => `
-                              <div class="relative group cursor-pointer hover:ring-2 hover:ring-blue-500 rounded-lg overflow-hidden">
+                            ${(shopifyProducts || []).map((product: any, index: number) => `
+                              <div class="image-option relative group cursor-pointer hover:ring-2 hover:ring-blue-500 rounded-lg overflow-hidden" data-url="${product.images[0]?.url}" data-index="${index}">
                                 <img 
                                   src="${product.images[0]?.url}" 
                                   alt="${product.title}"
-                                  class="w-full h-32 object-cover"
-                                  data-url="${product.images[0]?.url}"
+                                  class="w-full h-32 object-cover pointer-events-none"
                                 />
-                                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center pointer-events-none">
                                   <span class="text-white font-medium text-sm opacity-0 group-hover:opacity-100 transition-opacity">Select</span>
                                 </div>
-                                <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 truncate">
+                                <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 truncate pointer-events-none">
                                   ${product.title}
                                 </div>
                               </div>
@@ -1498,12 +1707,28 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
                       });
                       
                       // Handle image selection
-                      modal.querySelectorAll('[data-url]').forEach(img => {
-                        img.addEventListener('click', (e) => {
-                          const url = (e.target as HTMLElement).getAttribute('data-url');
+                      modal.querySelectorAll('.image-option').forEach((imageDiv, index) => {
+                        imageDiv.addEventListener('click', (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          console.log("🖼️ Modal Image Clicked:", {
+                            index,
+                            target: e.target,
+                            currentTarget: e.currentTarget
+                          });
+                          
+                          const url = (e.currentTarget as HTMLElement).getAttribute('data-url');
+                          console.log("🔗 Extracted URL:", url);
+                          
                           if (url) {
-                            handlePropertyChange(property.name, url);
-                            document.body.removeChild(modal);
+                            console.log("✅ Setting logo image URL:", url);
+                            handleTextInputChange(property.name, url);
+                            setTimeout(() => {
+                              document.body.removeChild(modal);
+                            }, 100);
+                          } else {
+                            console.error("❌ No URL found on clicked element");
                           }
                         });
                       });
@@ -1513,15 +1738,15 @@ function PropertyEditor({ component, onUpdate }: PropertyEditorProps) {
                   </button>
                 </div>
                 
-                {component.props[property.name] && (
+                {getTextInputValue(property.name, componentDef) && (
                   <div className="relative">
                     <img 
-                      src={component.props[property.name]} 
+                      src={getTextInputValue(property.name, componentDef)} 
                       alt="Selected image"
                       className="w-full h-32 object-cover rounded-lg border border-gray-200"
                     />
                     <button
-                      onClick={() => handlePropertyChange(property.name, "")}
+                      onClick={() => handleTextInputChange(property.name, "")}
                       className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors"
                     >
                       ×
@@ -1550,6 +1775,13 @@ export default function AppBuilder() {
   const [saveMode, setSaveMode] = useState<"new" | "existing">("new");
   const [selectedExistingTemplate, setSelectedExistingTemplate] = useState<string>("");
   const [previewDevice, setPreviewDevice] = useState<"iphone" | "android">("iphone");
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  
+  // Handle drawer toggle
+  const handleToggleDrawer = useCallback(() => {
+    console.log("🎯 handleToggleDrawer called, current state:", isDrawerOpen);
+    setIsDrawerOpen(prev => !prev);
+  }, [isDrawerOpen]);
   
   // Handle template loading
   useEffect(() => {
@@ -1640,11 +1872,31 @@ export default function AppBuilder() {
   }, [components, pageComponents]);
 
   const updateComponentProps = useCallback((componentId: string, props: Record<string, any>) => {
-    setPageComponents(prev => 
-      prev.map(comp => 
-        comp.id === componentId ? { ...comp, props } : comp
-      )
-    );
+    console.log("🔄 UPDATE COMPONENT PROPS CALLED:", {
+      componentId,
+      newProps: props,
+      propsKeys: Object.keys(props),
+      hasLogoText: 'logoText' in props,
+      logoTextValue: props.logoText
+    });
+    
+    setPageComponents(prev => {
+      const updated = prev.map(comp => {
+        if (comp.id === componentId) {
+          console.log("🎯 FOUND MATCHING COMPONENT:", {
+            oldProps: comp.props,
+            newProps: props,
+            componentId: comp.componentId,
+            type: comp.type
+          });
+          return { ...comp, props };
+        }
+        return comp;
+      });
+      
+      console.log("📝 PAGE COMPONENTS AFTER UPDATE:", updated);
+      return updated;
+    });
   }, []);
 
   const deleteComponent = useCallback((componentId: string) => {
@@ -1836,42 +2088,21 @@ export default function AppBuilder() {
         {/* Main Canvas */}
         <div className="app-builder-canvas">
           {/* Top Toolbar */}
-          <div className="bg-white border-b border-gray-200 p-4 mb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <h1 className="text-xl font-bold text-gray-900">App Builder</h1>
-                <span className="text-sm text-gray-500">
+          <div className="bg-white border-b border-gray-200 p-3 md:p-4 mb-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <h1 className="text-lg md:text-xl font-bold text-gray-900">App Builder</h1>
+                <span className="text-xs md:text-sm text-gray-500">
                   {pageComponents.length} component{pageComponents.length !== 1 ? 's' : ''} • {savedTemplates.length} template{savedTemplates.length !== 1 ? 's' : ''}
                 </span>
               </div>
               
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Create New Template Button */}
-                <button
-                  onClick={() => {
-                    if (pageComponents.length > 0) {
-                      if (confirm("Creating a new template will clear your current design. Continue?")) {
-                        setPageComponents([]);
-                        setSelectedComponent(null);
-                      }
-                    } else {
-                      // Already empty, just confirm we're starting fresh
-                      alert("Ready to create a new template! Start by dragging components to the canvas.");
-                    }
-                  }}
-                  className="px-1.5 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-green-600 border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
-                  title="Start a new template from scratch"
-                >
-                  <span className="hidden md:inline">📄 New Template</span>
-                  <span className="hidden sm:inline md:hidden">📄 New</span>
-                  <span className="sm:hidden">📄</span>
-                </button>
-
+              <div className="flex flex-wrap items-center gap-2">
                 {/* Load Template Button */}
                 {savedTemplates.length > 0 && (
                   <div className="relative">
                     <select 
-                      className="px-1.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[120px] sm:min-w-[140px]"
                       onChange={(e) => {
                         if (e.target.value) {
                           if (pageComponents.length > 0) {
@@ -1892,8 +2123,8 @@ export default function AppBuilder() {
                       }}
                     >
                       <option value="">
-                        <span className="hidden md:inline">📂 Load Template...</span>
-                        <span className="md:hidden">📂 Load...</span>
+                        <span className="hidden sm:inline">📂 Load Template...</span>
+                        <span className="sm:hidden">📂 Load...</span>
                       </option>
                       {savedTemplates.map((template: any) => (
                         <option key={template.id} value={template.id}>
@@ -1905,73 +2136,56 @@ export default function AppBuilder() {
                 )}
 
                 {/* Preview Device Toggle */}
-                <div className="flex bg-gray-100 rounded-lg p-0.5 sm:p-1">
+                <div className="flex bg-gray-100 rounded-lg p-0.5">
                   <button
                     onClick={() => setPreviewDevice("iphone")}
                     className={cn(
-                      "px-1.5 sm:px-2 md:px-3 py-1 text-xs sm:text-sm rounded-md transition-colors",
+                      "px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-md transition-colors whitespace-nowrap",
                       previewDevice === "iphone" 
                         ? "bg-white text-gray-900 shadow-sm" 
                         : "text-gray-600 hover:text-gray-900"
                     )}
                   >
-                    <span className="hidden md:inline">📱 iOS</span>
-                    <span className="md:hidden">📱</span>
+                    <span className="hidden sm:inline">📱 iOS</span>
+                    <span className="sm:hidden">📱</span>
                   </button>
                   <button
                     onClick={() => setPreviewDevice("android")}
                     className={cn(
-                      "px-1.5 sm:px-2 md:px-3 py-1 text-xs sm:text-sm rounded-md transition-colors",
+                      "px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-md transition-colors whitespace-nowrap",
                       previewDevice === "android" 
                         ? "bg-white text-gray-900 shadow-sm" 
                         : "text-gray-600 hover:text-gray-900"
                     )}
                   >
-                    <span className="hidden md:inline">🤖 Android</span>
-                    <span className="md:hidden">🤖</span>
+                    <span className="hidden sm:inline">🤖 Android</span>
+                    <span className="sm:hidden">🤖</span>
                   </button>
                 </div>
-
-                {/* Open in New Window */}
-                <button
-                  onClick={() => {
-                    const currentUrl = window.location.href;
-                    window.open(currentUrl, '_blank', 'width=1400,height=900,scrollbars=yes,resizable=yes');
-                  }}
-                  className="px-1.5 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
-                  title="Open in new window"
-                >
-                  <span className="hidden md:inline">🔗 New Window</span>
-                  <span className="hidden sm:inline md:hidden">🔗 Window</span>
-                  <span className="sm:hidden">🔗</span>
-                </button>
                 
                 <button
                   onClick={clearCanvas}
-                  className="px-1.5 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 whitespace-nowrap"
                   disabled={pageComponents.length === 0}
                 >
-                  <span className="hidden md:inline">🗑️ Clear All</span>
-                  <span className="hidden sm:inline md:hidden">🗑️ Clear</span>
+                  <span className="hidden sm:inline">🗑️ Clear All</span>
                   <span className="sm:hidden">🗑️</span>
                 </button>
                 
                 <button
                   onClick={() => setShowSaveDialog(true)}
-                  className="px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 whitespace-nowrap"
                   disabled={pageComponents.length === 0}
                 >
-                  <span className="hidden md:inline">💾 Save Template</span>
-                  <span className="hidden sm:inline md:hidden">💾 Save</span>
+                  <span className="hidden sm:inline">💾 Save Template</span>
                   <span className="sm:hidden">💾</span>
                 </button>
                 
                 <button
-                  className="px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 text-xs sm:text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 whitespace-nowrap"
                   disabled={pageComponents.length === 0}
                 >
-                  <span className="hidden md:inline">🚀 Publish App</span>
-                  <span className="hidden sm:inline md:hidden">🚀 Publish</span>
+                  <span className="hidden sm:inline">🚀 Publish App</span>
                   <span className="sm:hidden">🚀</span>
                 </button>
               </div>
@@ -1981,35 +2195,104 @@ export default function AppBuilder() {
 
 
           <div className="max-w-sm mx-auto">
-            <div className={cn(
-              "preview-device",
-              previewDevice === "iphone" ? "preview-iphone" : "preview-android"
-            )}>
-              <div className="preview-screen">
-                <div className="h-full">
+            {/* iPhone Preview */}
+            {previewDevice === "iphone" && (
+              <div className="relative mx-auto bg-black rounded-[3rem] p-2 shadow-2xl" style={{ width: '320px', height: '680px' }}>
+                {/* iPhone Frame */}
+                <div className="relative bg-white rounded-[2.5rem] h-full overflow-hidden">
+                  
+                  {/* Mobile Drawer - positioned at mobile device level */}
+                  {isDrawerOpen && (
+                    <div 
+                      className="absolute inset-0 bg-black bg-opacity-50 z-40"
+                      onClick={() => setIsDrawerOpen(false)}
+                    />
+                  )}
+                  
+                  <div 
+                    className={`absolute top-0 left-0 h-full w-64 bg-white z-50 transform transition-transform duration-300 shadow-lg ${
+                      isDrawerOpen ? 'translate-x-0' : '-translate-x-full'
+                    }`}
+                  >
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold text-gray-900">Menu</h2>
+                        <button 
+                          onClick={() => setIsDrawerOpen(false)}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                      
+                      {/* Menu Items */}
+                      <nav className="space-y-4">
+                        <a href="#" className="flex items-center gap-3 text-gray-700 hover:text-blue-600 py-2">
+                          <span>🏠</span> Home
+                        </a>
+                        <a href="#" className="flex items-center gap-3 text-gray-700 hover:text-blue-600 py-2">
+                          <span>📦</span> Products
+                        </a>
+                        <a href="#" className="flex items-center gap-3 text-gray-700 hover:text-blue-600 py-2">
+                          <span>🏷️</span> Categories
+                        </a>
+                        <a href="#" className="flex items-center gap-3 text-gray-700 hover:text-blue-600 py-2">
+                          <span>🛒</span> Cart
+                        </a>
+                        <a href="#" className="flex items-center gap-3 text-gray-700 hover:text-blue-600 py-2">
+                          <span>👤</span> Account
+                        </a>
+                        <a href="#" className="flex items-center gap-3 text-gray-700 hover:text-blue-600 py-2">
+                          <span>📞</span> Contact
+                        </a>
+                      </nav>
+                    </div>
+                  </div>
+                  {/* Dynamic Island */}
+                  <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-32 h-7 bg-black rounded-full z-10"></div>
+                  
                   {/* Status Bar */}
-                  <div className={cn(
-                    "h-12 flex items-center justify-center text-white text-sm",
-                    previewDevice === "iphone" ? "bg-black" : "bg-gray-800"
-                  )}>
-                    {previewDevice === "iphone" ? "9:41 AM" : "12:34 • ••• ⚡ 🔋"}
+                  <div className="relative pt-4 pb-2 px-6 bg-white">
+                    <div className="flex items-center justify-between text-black text-sm font-semibold">
+                      <div className="flex items-center space-x-1">
+                        <span>9:41</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <div className="flex space-x-1">
+                          <div className="w-1 h-1 bg-black rounded-full"></div>
+                          <div className="w-1 h-1 bg-black rounded-full"></div>
+                          <div className="w-1 h-1 bg-black rounded-full"></div>
+                          <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                        </div>
+                        <svg className="w-4 h-3" viewBox="0 0 24 24" fill="none">
+                          <path d="M2 16h6v2H2v-2zm3.5-4.5L8 14H5.5l-2.5-2.5L5.5 9 8 11.5 5.5 14zm8.5-.5h8v2h-8v-2zm0 4h8v2h-8v-2zm0-8h8v2h-8v-2z" fill="currentColor"/>
+                        </svg>
+                        <div className="flex items-center">
+                          <div className="w-6 h-3 border border-black rounded-sm">
+                            <div className="w-4 h-2 bg-green-500 rounded-sm m-0.5"></div>
+                          </div>
+                          <div className="w-1 h-1 bg-black rounded-sm ml-0.5"></div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   
                   {/* App Content - Scrollable */}
                   <div 
                     className={cn(
-                      "drop-zone h-[calc(100%-3rem)] overflow-y-auto scrollbar-hide",
+                      "drop-zone h-[calc(100%-5rem)] overflow-y-auto scrollbar-hide bg-gray-50",
                       pageComponents.length === 0 && "empty",
                       activeId && "drag-over"
                     )}
                     style={{
-                      scrollbarWidth: 'none', /* Firefox */
-                      msOverflowStyle: 'none', /* IE and Edge */
+                      scrollbarWidth: 'none',
+                      msOverflowStyle: 'none',
                     }}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => {
                       e.preventDefault();
-                      // Only handle drops when canvas is empty or not targeting the bottom drop zone
                       if (pageComponents.length === 0) {
                         const componentId = e.dataTransfer.getData("component");
                         if (componentId) {
@@ -2021,7 +2304,6 @@ export default function AppBuilder() {
                               type: componentDef.type,
                               props: { 
                                 ...componentDef.defaultProps,
-                                // Ensure dataSource is explicitly set for product components
                                 ...(componentDef.type === "CAROUSEL" || componentDef.type === "PRODUCT_GRID" ? { dataSource: "mock" } : {})
                               },
                               order: pageComponents.length
@@ -2040,8 +2322,8 @@ export default function AppBuilder() {
                       {pageComponents.length === 0 ? (
                         <div className="text-center text-gray-500 py-12">
                           <div className="text-4xl mb-2">📱</div>
-                          <p className="mb-2">Drag components here to start building</p>
-                          <p className="text-xs">Your mobile app preview will appear here</p>
+                          <p className="mb-2 text-sm">Drag components here</p>
+                          <p className="text-xs">iOS app preview</p>
                         </div>
                       ) : (
                         <>
@@ -2053,12 +2335,12 @@ export default function AppBuilder() {
                               isSelected={selectedComponent?.id === component.id}
                               shopifyProducts={shopifyProducts || []}
                               shopifyCollections={shopifyCollections || []}
+                              onToggleDrawer={handleToggleDrawer}
                             />
                           ))}
                           
-                          {/* Drop zone for adding more components */}
                           <div 
-                            className="min-h-[80px] border-2 border-dashed border-gray-300 rounded-lg mx-4 my-4 flex items-center justify-center text-gray-400 text-sm transition-colors hover:border-blue-400 hover:text-blue-500"
+                            className="min-h-[60px] border-2 border-dashed border-gray-300 rounded-lg mx-4 my-4 flex items-center justify-center text-gray-400 text-xs transition-colors hover:border-blue-400 hover:text-blue-500"
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={(e) => {
                               e.preventDefault();
@@ -2072,7 +2354,6 @@ export default function AppBuilder() {
                                     type: componentDef.type,
                                     props: { 
                                       ...componentDef.defaultProps,
-                                      // Ensure dataSource is explicitly set for product components
                                       ...(componentDef.type === "CAROUSEL" || componentDef.type === "PRODUCT_GRID" ? { dataSource: "mock" } : {})
                                     },
                                     order: pageComponents.length
@@ -2082,15 +2363,218 @@ export default function AppBuilder() {
                               }
                             }}
                           >
-                            + Drop new component here
+                            + Drop new component
                           </div>
                         </>
                       )}
                     </SortableContext>
                   </div>
+                  
+                  {/* Home Indicator */}
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-black rounded-full opacity-60"></div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Android Preview */}
+            {previewDevice === "android" && (
+              <div className="relative mx-auto bg-gray-900 rounded-2xl p-1 shadow-2xl" style={{ width: '320px', height: '680px' }}>
+                {/* Android Frame */}
+                <div className="relative bg-white rounded-xl h-full overflow-hidden">
+                
+                  {/* Mobile Drawer - positioned at mobile device level */}
+                  {isDrawerOpen && (
+                    <div 
+                      className="absolute inset-0 bg-black bg-opacity-50 z-40"
+                      onClick={() => setIsDrawerOpen(false)}
+                    />
+                  )}
+                  
+                  <div 
+                    className={`absolute top-0 left-0 h-full w-64 bg-white z-50 transform transition-transform duration-300 shadow-lg ${
+                      isDrawerOpen ? 'translate-x-0' : '-translate-x-full'
+                    }`}
+                  >
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold text-gray-900">Menu</h2>
+                        <button 
+                          onClick={() => setIsDrawerOpen(false)}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                      
+                      {/* Menu Items */}
+                      <nav className="space-y-4">
+                        <a href="#" className="flex items-center gap-3 text-gray-700 hover:text-blue-600 py-2">
+                          <span>🏠</span> Home
+                        </a>
+                        <a href="#" className="flex items-center gap-3 text-gray-700 hover:text-blue-600 py-2">
+                          <span>📦</span> Products
+                        </a>
+                        <a href="#" className="flex items-center gap-3 text-gray-700 hover:text-blue-600 py-2">
+                          <span>🏷️</span> Categories
+                        </a>
+                        <a href="#" className="flex items-center gap-3 text-gray-700 hover:text-blue-600 py-2">
+                          <span>🛒</span> Cart
+                        </a>
+                        <a href="#" className="flex items-center gap-3 text-gray-700 hover:text-blue-600 py-2">
+                          <span>👤</span> Account
+                        </a>
+                        <a href="#" className="flex items-center gap-3 text-gray-700 hover:text-blue-600 py-2">
+                          <span>📞</span> Contact
+                        </a>
+                      </nav>
+                    </div>
+                  </div>
+                  {/* Status Bar */}
+                  <div className="bg-white px-4 py-2">
+                    <div className="flex items-center justify-between text-black text-sm">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">12:34</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        {/* Signal Bars */}
+                        <div className="flex items-end space-x-0.5">
+                          <div className="w-1 h-2 bg-black rounded-sm"></div>
+                          <div className="w-1 h-3 bg-black rounded-sm"></div>
+                          <div className="w-1 h-4 bg-black rounded-sm"></div>
+                          <div className="w-1 h-5 bg-black rounded-sm"></div>
+                        </div>
+                        {/* WiFi */}
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.07 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/>
+                        </svg>
+                        {/* Battery */}
+                        <div className="flex items-center">
+                          <div className="w-6 h-3 border border-black rounded-sm">
+                            <div className="w-4 h-2 bg-green-500 rounded-sm m-0.5"></div>
+                          </div>
+                          <span className="text-xs ml-1">85</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* App Content - Scrollable */}
+                  <div 
+                    className={cn(
+                      "drop-zone h-[calc(100%-6rem)] overflow-y-auto scrollbar-hide bg-gray-50",
+                      pageComponents.length === 0 && "empty",
+                      activeId && "drag-over"
+                    )}
+                    style={{
+                      scrollbarWidth: 'none',
+                      msOverflowStyle: 'none',
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (pageComponents.length === 0) {
+                        const componentId = e.dataTransfer.getData("component");
+                        if (componentId) {
+                          const componentDef = components.find(c => c.id === componentId);
+                          if (componentDef) {
+                            const newComponent: PageComponent = {
+                              id: generateId(),
+                              componentId: componentId,
+                              type: componentDef.type,
+                              props: { 
+                                ...componentDef.defaultProps,
+                                ...(componentDef.type === "CAROUSEL" || componentDef.type === "PRODUCT_GRID" ? { dataSource: "mock" } : {})
+                              },
+                              order: pageComponents.length
+                            };
+                            setPageComponents(prev => [...prev, newComponent]);
+                          }
+                        }
+                      }
+                    }}
+                    id="canvas"
+                  >
+                    <SortableContext 
+                      items={pageComponents.map(c => c.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {pageComponents.length === 0 ? (
+                        <div className="text-center text-gray-500 py-12">
+                          <div className="text-4xl mb-2">🤖</div>
+                          <p className="mb-2 text-sm">Drag components here</p>
+                          <p className="text-xs">Android app preview</p>
+                        </div>
+                      ) : (
+                        <>
+                          {pageComponents.map((component) => (
+                            <DroppableComponent
+                              key={component.id}
+                              component={component}
+                              onSelect={setSelectedComponent}
+                              isSelected={selectedComponent?.id === component.id}
+                              shopifyProducts={shopifyProducts || []}
+                              shopifyCollections={shopifyCollections || []}
+                              onToggleDrawer={handleToggleDrawer}
+                            />
+                          ))}
+                          
+                          <div 
+                            className="min-h-[60px] border-2 border-dashed border-gray-300 rounded-lg mx-4 my-4 flex items-center justify-center text-gray-400 text-xs transition-colors hover:border-blue-400 hover:text-blue-500"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const componentId = e.dataTransfer.getData("component");
+                              if (componentId) {
+                                const componentDef = components.find(c => c.id === componentId);
+                                if (componentDef) {
+                                  const newComponent: PageComponent = {
+                                    id: generateId(),
+                                    componentId: componentId,
+                                    type: componentDef.type,
+                                    props: { 
+                                      ...componentDef.defaultProps,
+                                      ...(componentDef.type === "CAROUSEL" || componentDef.type === "PRODUCT_GRID" ? { dataSource: "mock" } : {})
+                                    },
+                                    order: pageComponents.length
+                                  };
+                                  setPageComponents(prev => [...prev, newComponent]);
+                                }
+                              }
+                            }}
+                          >
+                            + Drop new component
+                          </div>
+                        </>
+                      )}
+                    </SortableContext>
+                  </div>
+                  
+                  {/* Android Navigation Bar */}
+                  <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-12 flex items-center justify-around">
+                    {/* Back Button */}
+                    <button className="p-2">
+                      <svg className="w-6 h-6 text-gray-700" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                      </svg>
+                    </button>
+                    
+                    {/* Home Button */}
+                    <button className="p-2">
+                      <div className="w-6 h-6 border-2 border-gray-700 rounded-full bg-white"></div>
+                    </button>
+                    
+                    {/* Recent Apps Button */}
+                    <button className="p-2">
+                      <svg className="w-6 h-6 text-gray-700" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
