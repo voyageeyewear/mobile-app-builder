@@ -209,6 +209,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
      console.log(`🚀 Returning ${finalProducts.length} products and ${finalCollections.length} collections to frontend`);
 
+     // Cache real Shopify products for live config API
+     if (shopifyProducts.length > 0) {
+       try {
+         const { setShopifyData } = await import("../lib/shopify-cache");
+         setShopifyData(session.shop, shopifyProducts, shopifyCollections);
+       } catch (cacheError) {
+         console.log("⚠️ Failed to cache products:", cacheError);
+       }
+     }
+
      return json({ 
        components: componentLibrary,
        savedTemplates,
