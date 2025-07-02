@@ -23,3 +23,10 @@ database.sqlite
 # Ignore shopify files created during app dev
 .shopify/*
 .shopify.lock
+
+# Mobile app generation files
+mobile-template/
+generated-apps/
+generated-apks/
+*.apk
+*.keystore

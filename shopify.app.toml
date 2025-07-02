@@ -3,7 +3,7 @@
 client_id = "46e3839f24818638319c72bab3ffb1fc"
 name = "app-builder"
 handle = "app-builder-25"
-application_url = "https://signatures-moses-script-sm.trycloudflare.com"
+application_url = "https://bowling-approximately-treating-facility.trycloudflare.com"
 embedded = true
 
 [build]
@@ -42,7 +42,7 @@ api_version = "2025-04"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://signatures-moses-script-sm.trycloudflare.com/auth/callback", "https://signatures-moses-script-sm.trycloudflare.com/auth/shopify/callback", "https://signatures-moses-script-sm.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://bowling-approximately-treating-facility.trycloudflare.com/auth/callback", "https://bowling-approximately-treating-facility.trycloudflare.com/auth/shopify/callback", "https://bowling-approximately-treating-facility.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

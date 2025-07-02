@@ -178,6 +178,7 @@ export default function AppIndex() {
             <Link
               key={index}
               to={action.link}
+
               className="group block bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow"
             >
               <div className={`w-12 h-12 ${action.color} rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
