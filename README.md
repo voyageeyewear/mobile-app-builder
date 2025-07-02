@@ -1,4 +1,4 @@
-# 🚀 Mobile App Builder - Appbrew Alternative
+# 🚀 Mobile App Builder 
 
 A comprehensive no-code mobile app builder for Shopify stores, similar to Appbrew. Create native iOS and Android apps with drag-and-drop functionality, real-time Shopify sync, push notifications, and advanced analytics.
 
