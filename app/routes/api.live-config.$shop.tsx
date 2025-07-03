@@ -2,6 +2,7 @@ import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { prisma } from "../db.server";
 import { authenticate } from "../shopify.server";
 import { shopifyApi } from '@shopify/shopify-api';
+import { componentLibrary } from "../lib/utils";
 
 const GET_PRODUCTS_QUERY = `
   query {
@@ -165,13 +166,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     const latestTemplate = mobileApp.pages[0];
     
     // Transform database components to mobile app format
-    const components = latestTemplate.components.map(comp => ({
-      id: comp.id,
-      componentId: comp.componentId,
-      type: comp.component.type,
-      props: comp.props,
-      order: comp.order
-    }));
+    const components = latestTemplate.components.map(comp => {
+      // Find the corresponding component library entry by type and name
+      const componentLibEntry = componentLibrary.find(c => 
+        c.type === comp.component.type && c.name === comp.component.name
+      );
+      
+      return {
+        id: comp.id,
+        componentId: componentLibEntry?.id || comp.component.name.toLowerCase().replace(/\s+/g, '-'),
+        type: comp.component.type,
+        props: comp.props,
+        order: comp.order
+      };
+    });
 
     const config = {
       id: latestTemplate.id,
