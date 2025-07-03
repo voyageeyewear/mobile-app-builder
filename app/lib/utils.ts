@@ -525,6 +525,37 @@ export const componentLibrary = [
     }
   },
   {
+    id: "hero-slider",
+    name: "Hero Slider",
+    type: "HERO_SLIDER",
+    category: "Media",
+    icon: "🎬",
+    description: "Professional slider for images and videos with navigation",
+    defaultProps: {
+      slides: [
+        { url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=400&fit=crop", type: "image" },
+        { url: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=400&fit=crop", type: "image" }
+      ],
+      height: 250,
+      borderRadius: 12,
+      autoPlay: true,
+      autoPlayInterval: 4000,
+      showDots: true,
+      showArrows: true
+    },
+    config: {
+      properties: [
+        { name: "slides", type: "text", label: "Slides (JSON)", description: "JSON array of slides with url and type properties" },
+        { name: "height", type: "number", label: "Height (px)", min: 150, max: 500 } as any,
+        { name: "borderRadius", type: "number", label: "Border Radius (px)", min: 0, max: 30 } as any,
+        { name: "autoPlay", type: "boolean", label: "Auto Play" },
+        { name: "autoPlayInterval", type: "number", label: "Auto Play Interval (ms)", min: 1000, max: 10000, condition: { field: "autoPlay", value: true } } as any,
+        { name: "showDots", type: "boolean", label: "Show Navigation Dots" },
+        { name: "showArrows", type: "boolean", label: "Show Navigation Arrows" }
+      ]
+    }
+  },
+  {
     id: "button",
     name: "Button",
     type: "BUTTON",
