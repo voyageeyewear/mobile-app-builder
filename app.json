@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "c6cbe811-ada5-445d-a299-6e1c49cf2a41"
+      }
+    },
+    "android": {
+      "package": "com.voyageeyewear.appbuilder"
+    }
+  }
+}

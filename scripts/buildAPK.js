@@ -30,7 +30,7 @@ async function buildAPK(appPath, buildType = 'debug') {
     
     // Install dependencies
     console.log('📦 Installing dependencies...');
-    execSync('npm install', { cwd: fullAppPath, stdio: 'inherit' });
+    execSync('npm install --legacy-peer-deps', { cwd: fullAppPath, stdio: 'inherit' });
     
     // Setup Android environment
     await setupAndroidEnvironment(fullAppPath);

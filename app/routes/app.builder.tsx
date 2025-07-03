@@ -329,21 +329,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       for (const comp of pageComponents) {
         const componentDef = componentLibrary.find(c => c.id === comp.componentId);
         if (componentDef) {
-          await prisma.component.upsert({
-            where: { id: comp.componentId },
-            update: {},
-            create: {
-              id: comp.componentId,
+          // Check if component definition already exists by name and type
+          const existingComponent = await prisma.component.findFirst({
+            where: {
               name: componentDef.name,
-              type: componentDef.type as any,
-              category: componentDef.category,
-              description: componentDef.description || "",
-              config: componentDef.config as any,
-              defaultProps: componentDef.defaultProps as any,
-              icon: componentDef.icon,
-              isActive: true
+              type: componentDef.type as any
             }
           });
+          
+          if (!existingComponent) {
+            // Create new component definition (let Prisma auto-generate the ID)
+            await prisma.component.create({
+              data: {
+                name: componentDef.name,
+                type: componentDef.type as any,
+                category: componentDef.category,
+                description: componentDef.description || "",
+                config: componentDef.config as any,
+                defaultProps: componentDef.defaultProps as any,
+                icon: componentDef.icon,
+                isActive: true
+              }
+            });
+          }
         }
       }
       
@@ -382,15 +390,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         // Create new page components
         for (let i = 0; i < pageComponents.length; i++) {
           const comp = pageComponents[i];
-          await prisma.pageComponent.create({
-            data: {
-              pageId: savedTemplate.id,
-              componentId: comp.componentId,
-              order: i,
-              props: comp.props || comp.properties || {},
-              styles: {}
+          const componentDef = componentLibrary.find(c => c.id === comp.componentId);
+          if (componentDef) {
+            // Find the database component by name and type
+            const dbComponent = await prisma.component.findFirst({
+              where: {
+                name: componentDef.name,
+                type: componentDef.type as any
+              }
+            });
+            
+            if (dbComponent) {
+              await prisma.pageComponent.create({
+                data: {
+                  pageId: savedTemplate.id,
+                  componentId: dbComponent.id, // Use database component ID
+                  order: i,
+                  props: comp.props || comp.properties || {},
+                  styles: {}
+                }
+              });
             }
-          });
+          }
         }
         
         // Auto-generate mobile app after updating template
@@ -457,20 +478,37 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           });
           
           try {
-            // Test JSON serialization of props
-            const propsJson = JSON.stringify(comp.props || {});
-            JSON.parse(propsJson); // Test if it can be parsed back
-            
-            await prisma.pageComponent.create({
-              data: {
-                pageId: savedTemplate.id,
-                componentId: comp.componentId,
-                order: i,
-                props: comp.props || comp.properties || {},
-                styles: {}
+            const componentDef = componentLibrary.find(c => c.id === comp.componentId);
+            if (componentDef) {
+              // Find the database component by name and type
+              const dbComponent = await prisma.component.findFirst({
+                where: {
+                  name: componentDef.name,
+                  type: componentDef.type as any
+                }
+              });
+              
+              if (dbComponent) {
+                // Test JSON serialization of props
+                const propsJson = JSON.stringify(comp.props || {});
+                JSON.parse(propsJson); // Test if it can be parsed back
+                
+                await prisma.pageComponent.create({
+                  data: {
+                    pageId: savedTemplate.id,
+                    componentId: dbComponent.id, // Use database component ID
+                    order: i,
+                    props: comp.props || comp.properties || {},
+                    styles: {}
+                  }
+                });
+                console.log(`✅ Component ${i + 1} saved successfully`);
+              } else {
+                console.error(`❌ Database component not found for: ${comp.componentId}`);
               }
-            });
-            console.log(`✅ Component ${i + 1} saved successfully`);
+            } else {
+              console.error(`❌ Component definition not found for: ${comp.componentId}`);
+            }
           } catch (compError) {
             console.error(`❌ Failed to save component ${i + 1}:`, compError);
             console.error(`❌ Component props:`, comp.props);
@@ -544,13 +582,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const templateData = {
         id: template.id,
         name: template.name,
-        components: template.components.map(comp => ({
-          id: generateId(), // Generate new IDs for the loaded components
-          componentId: comp.componentId,
-          type: comp.component.type,
-          props: comp.props as Record<string, any>,
-          order: comp.order
-        }))
+        components: template.components.map(comp => {
+          // Find the component library definition by matching database component name and type
+          const componentLibraryDef = componentLibrary.find(c => 
+            c.name === comp.component.name && c.type === comp.component.type
+          );
+          
+          return {
+            id: generateId(), // Generate new IDs for the loaded components
+            componentId: componentLibraryDef?.id || comp.componentId, // Use library ID if found, fallback to database ID
+            type: comp.component.type,
+            props: comp.props as Record<string, any>,
+            order: comp.order
+          };
+        })
       };
       
       console.log("✅ Template loaded successfully:", template.name);
@@ -1253,6 +1298,145 @@ function ComponentPreview({ component, shopifyProducts, shopifyCollections, onTo
         </div>
       );
     
+    case "HERO_SLIDER":
+      // Count configured slides
+      const slideCount = (component.props.slides?.length || 0) + 
+        [component.props.slide1Url, component.props.slide2Url, component.props.slide3Url, component.props.slide4Url, component.props.slide5Url]
+        .filter(url => url && url.trim()).length;
+      
+      return (
+        <div className="w-full relative bg-gray-100 rounded-lg overflow-hidden" style={{ height: component.props.height || 250 }}>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <span className="text-4xl">🎬</span>
+              <p className="text-sm text-gray-600 mt-2">Hero Slider</p>
+              <p className="text-xs text-gray-500">{slideCount} slides configured</p>
+              {component.props.autoPlay && <p className="text-xs text-gray-500">Auto-play enabled</p>}
+            </div>
+          </div>
+          {component.props.showDots && slideCount > 1 && (
+            <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1">
+              {Array.from({ length: Math.min(slideCount, 5) }, (_, i) => (
+                <div key={i} className={`w-2 h-2 bg-white rounded-full ${i === 0 ? 'opacity-75' : 'opacity-50'}`}></div>
+              ))}
+            </div>
+          )}
+          {component.props.showArrows && slideCount > 1 && (
+            <>
+              <div className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-1 rounded text-sm">‹</div>
+              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-1 rounded text-sm">›</div>
+            </>
+          )}
+        </div>
+      );
+    
+    case "PRODUCT_DETAIL_PAGE":
+      return (
+        <div className="w-full bg-white rounded-lg border border-gray-200 overflow-hidden">
+          {/* Product Image */}
+          <div className="aspect-square bg-gray-100 relative">
+            {component.props.productImages && component.props.productImages.length > 0 ? (
+              <img 
+                src={component.props.productImages[0]} 
+                alt={component.props.productTitle}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-4xl">🛍️</span>
+              </div>
+            )}
+                         {component.props.showImageIndicators && component.props.productImages && component.props.productImages.length > 1 && (
+               <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
+                 {component.props.productImages.slice(0, 3).map((_: any, i: number) => (
+                   <div key={i} className={`w-2 h-2 bg-white rounded-full ${i === 0 ? 'opacity-75' : 'opacity-50'}`}></div>
+                 ))}
+               </div>
+             )}
+            {component.props.showStockStatus && (
+              <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs font-medium ${
+                component.props.inStock ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+              }`}>
+                {component.props.inStock ? `${component.props.stockQuantity} in stock` : 'Out of stock'}
+              </div>
+            )}
+          </div>
+          
+          {/* Product Info */}
+          <div className="p-4 space-y-3">
+            {component.props.showVendor && component.props.productVendor && (
+              <p className="text-sm text-gray-600 font-medium">{component.props.productVendor}</p>
+            )}
+            
+            <h3 className="font-bold text-lg text-gray-900 line-clamp-2">
+              {component.props.productTitle || "Product Title"}
+            </h3>
+            
+            {component.props.showProductType && component.props.productType && (
+              <p className="text-sm text-gray-500">{component.props.productType}</p>
+            )}
+            
+                         {component.props.showTags && component.props.productTags && component.props.productTags.length > 0 && (
+               <div className="flex flex-wrap gap-1">
+                 {component.props.productTags.slice(0, 3).map((tag: any, i: number) => (
+                   <span key={i} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                     {tag}
+                   </span>
+                 ))}
+               </div>
+             )}
+            
+            {/* Price */}
+            <div className="flex items-center space-x-2">
+              <span className="text-xl font-bold" style={{ color: component.props.priceColor }}>
+                ${component.props.productPrice || "0.00"}
+              </span>
+              {component.props.showComparePrice && component.props.compareAtPrice && (
+                <>
+                  <span className="text-sm line-through" style={{ color: component.props.compareAtPriceColor }}>
+                    ${component.props.compareAtPrice}
+                  </span>
+                  <span className="text-xs bg-red-500 text-white px-2 py-1 rounded">
+                    Save {Math.round(((parseFloat(component.props.compareAtPrice) - parseFloat(component.props.productPrice)) / parseFloat(component.props.compareAtPrice)) * 100)}%
+                  </span>
+                </>
+              )}
+            </div>
+            
+            {/* Quantity Selector Preview */}
+            {component.props.showQuantitySelector && component.props.inStock && (
+              <div className="flex items-center space-x-3">
+                <span className="text-sm font-medium">Qty:</span>
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 border rounded flex items-center justify-center text-sm" style={{ backgroundColor: component.props.quantityButtonColor }}>-</div>
+                  <span className="w-8 text-center text-sm">1</span>
+                  <div className="w-8 h-8 border rounded flex items-center justify-center text-sm" style={{ backgroundColor: component.props.quantityButtonColor }}>+</div>
+                </div>
+              </div>
+            )}
+            
+            {/* Add to Cart Button */}
+            <button 
+              className="w-full py-3 rounded-lg text-white font-medium text-sm"
+              style={{ backgroundColor: component.props.inStock ? component.props.addToCartButtonColor : '#CCCCCC' }}
+              disabled={!component.props.inStock}
+            >
+              {component.props.inStock ? component.props.addToCartButtonText : 'Out of Stock'}
+            </button>
+            
+            {/* Description Preview */}
+            {component.props.showDescription && component.props.productDescription && (
+              <div className="pt-3 border-t border-gray-200">
+                <h4 className="font-medium text-sm mb-2">Description</h4>
+                <p className="text-sm line-clamp-3" style={{ color: component.props.descriptionColor }}>
+                  {component.props.productDescription}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+
     case "SPACER":
       return (
         <div 
@@ -1818,6 +2002,29 @@ export default function AppBuilder() {
   const [isLivePreview, setIsLivePreview] = useState(false);
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
   
+  // Auto-load the live preview template on component mount
+  useEffect(() => {
+    const autoLoadTemplate = async () => {
+      // Check if we have the live preview template and no components loaded
+      if (pageComponents.length === 0 && savedTemplates.length > 0) {
+        const livePreviewTemplate = savedTemplates.find((t: any) => t.name === 'live-preview-1751483946613');
+        
+        if (livePreviewTemplate) {
+          console.log('🔄 Auto-loading live preview template:', livePreviewTemplate.name);
+          
+          const formData = new FormData();
+          formData.append("intent", "load-template");
+          formData.append("templateId", livePreviewTemplate.id);
+          fetcher.submit(formData, { method: "POST" });
+        }
+      }
+    };
+
+    // Small delay to ensure everything is loaded
+    const timeout = setTimeout(autoLoadTemplate, 1000);
+    return () => clearTimeout(timeout);
+  }, [savedTemplates, pageComponents.length, fetcher]);
+  
   // Handle drawer toggle
   const handleToggleDrawer = useCallback(() => {
     console.log("🎯 handleToggleDrawer called, current state:", isDrawerOpen);
@@ -1843,14 +2050,20 @@ export default function AppBuilder() {
     });
   }, [fetcher.state, fetcher.data]);
 
-  // Handle template save success - reload page to refresh templates list
+  // Handle template save success - update templates list without page reload
   useEffect(() => {
     if (fetcher.data && (fetcher.data as any).success && (fetcher.data as any).templateId && !(fetcher.data as any).template) {
-      console.log("✅ TEMPLATE SAVE SUCCESS - RELOADING PAGE");
-      // Template was saved successfully, reload the page to refresh the templates list
+      console.log("✅ TEMPLATE SAVE SUCCESS - UPDATING STATE");
+      
+      // Update saved templates list in state instead of reloading page
+      const savedTemplateData = (fetcher.data as any);
+      
+      // Show success message briefly
       setTimeout(() => {
-        window.location.reload();
-      }, 2000); // Give user time to see the success message
+        // Clear the fetcher data to hide success message
+        // Note: This is a simple approach, in production you might want a proper toast system
+      }, 3000);
+      
     } else if (fetcher.data && !(fetcher.data as any).success) {
       console.error("❌ TEMPLATE SAVE FAILED:", fetcher.data);
       alert(`Template save failed: ${(fetcher.data as any).message || 'Unknown error'}`);
@@ -1919,12 +2132,24 @@ export default function AppBuilder() {
     console.log("💾 Auto-saving for live preview...");
     
     try {
-      const autoSaveTemplateName = `live-preview-${Date.now()}`;
+      // Use the specific template name for live preview
+      const livePreviewTemplateName = "live-preview-1751483946613";
+      
+      // Check if this template already exists
+      const existingTemplate = savedTemplates.find((t: any) => t.name === livePreviewTemplateName);
       
       const formData = new FormData();
       formData.append("intent", "save-template");
-      formData.append("templateName", autoSaveTemplateName);
+      formData.append("templateName", livePreviewTemplateName);
       formData.append("pageComponents", JSON.stringify(pageComponents));
+      
+      // If template exists, update it instead of creating new one
+      if (existingTemplate) {
+        formData.append("templateId", existingTemplate.id);
+        console.log("🔄 Auto-save: Updating existing template", existingTemplate.id);
+      } else {
+        console.log("📝 Auto-save: Creating new live preview template");
+      }
       
       // Submit without blocking UI
       fetcher.submit(formData, { method: "POST" });
@@ -1933,7 +2158,7 @@ export default function AppBuilder() {
     } catch (error) {
       console.error("❌ Auto-save failed:", error);
     }
-  }, [isLivePreview, pageComponents, fetcher]);
+  }, [isLivePreview, pageComponents, fetcher, savedTemplates]);
 
   const updateComponentProps = useCallback((componentId: string, props: Record<string, any>) => {
     console.log("🔄 UPDATE COMPONENT PROPS CALLED:", {
@@ -2241,6 +2466,22 @@ export default function AppBuilder() {
                 {/* Load Template Button */}
                 {savedTemplates.length > 0 && (
                   <div className="relative">
+                    {pageComponents.length === 0 && savedTemplates.find((t: any) => t.name === 'live-preview-1751483946613') && (
+                      <button
+                        onClick={() => {
+                          const liveTemplate = savedTemplates.find((t: any) => t.name === 'live-preview-1751483946613');
+                          if (liveTemplate) {
+                            const formData = new FormData();
+                            formData.append("intent", "load-template");
+                            formData.append("templateId", liveTemplate.id);
+                            fetcher.submit(formData, { method: "POST" });
+                          }
+                        }}
+                        className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium mr-2"
+                      >
+                        📂 Load Your Template
+                      </button>
+                    )}
                     <select 
                       className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[120px] sm:min-w-[140px]"
                       onChange={(e) => {

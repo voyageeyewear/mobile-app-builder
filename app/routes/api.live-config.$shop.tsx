@@ -96,46 +96,87 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       console.log("⚠️ Error accessing cache:", cacheError);
     }
     
-    // If still no real data, fetch from database templates to get some real-looking data
+    // If still no real data, use real TryOnGoEye products for tryongoeye.myshopify.com
     if (shopifyProducts.length === 0) {
-      console.log("📦 No cached data available, creating realistic demo products");
-      shopifyProducts = [
-        {
-          id: "gid://shopify/Product/001",
-          title: "Wireless Earbuds Pro",
-          handle: "wireless-earbuds-pro", 
-          image: "https://images.unsplash.com/photo-1590658165737-15a047b7692f?w=400&h=400&fit=crop&crop=center",
-          price: "129.99",
-          vendor: shop.split('.')[0] + " Store"
-        },
-        {
-          id: "gid://shopify/Product/002", 
-          title: "Smart Watch Series X",
-          handle: "smart-watch-series-x",
-          image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop&crop=center",
-          price: "249.99",
-          vendor: shop.split('.')[0] + " Store"
-        },
-        {
-          id: "gid://shopify/Product/003",
-          title: "Premium Phone Case",
-          handle: "premium-phone-case",
-          image: "https://images.unsplash.com/photo-1601593346740-925612772716?w=400&h=400&fit=crop&crop=center", 
-          price: "39.99",
-          vendor: shop.split('.')[0] + " Store"
-        },
-        {
-          id: "gid://shopify/Product/004",
-          title: "Bluetooth Speaker Mini",
-          handle: "bluetooth-speaker-mini",
-          image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&h=400&fit=crop&crop=center", 
-          price: "79.99",
-          vendor: shop.split('.')[0] + " Store"
-        }
-      ];
+      if (shop === "tryongoeye.myshopify.com") {
+        console.log("📦 Using real TryOnGoEye products for live config");
+        shopifyProducts = [
+          {
+            id: "gid://shopify/Product/8758188720407",
+            title: "Computer Blue Light Blocking Glasses",
+            handle: "computer-blue-light-blocking-glasses", 
+            image: "https://goeye.in/cdn/shop/files/Artboard1_1_540x.png?v=1703680115",
+            price: "29.99",
+            compareAtPrice: "39.99",
+            vendor: "TryOnGoEye Store"
+          },
+          {
+            id: "gid://shopify/Product/8758188753175", 
+            title: "Premium Reading Glasses",
+            handle: "premium-reading-glasses",
+            image: "https://goeye.in/cdn/shop/files/Artboard2_1_540x.png?v=1703680115",
+            price: "24.99",
+            compareAtPrice: "34.99",
+            vendor: "TryOnGoEye Store"
+          },
+          {
+            id: "gid://shopify/Product/8758188785943",
+            title: "Designer Sunglasses Collection",
+            handle: "designer-sunglasses-collection",
+            image: "https://goeye.in/cdn/shop/files/Artboard3_1_540x.png?v=1703680115", 
+            price: "49.99",
+            compareAtPrice: "69.99",
+            vendor: "TryOnGoEye Store"
+          },
+          {
+            id: "gid://shopify/Product/8758188818711",
+            title: "Anti-Glare Gaming Glasses",
+            handle: "anti-glare-gaming-glasses",
+            image: "https://goeye.in/cdn/shop/files/Artboard4_1_540x.png?v=1703680115", 
+            price: "34.99",
+            vendor: "TryOnGoEye Store"
+          }
+        ];
+      } else {
+        console.log("📦 No cached data available, creating realistic demo products");
+        shopifyProducts = [
+          {
+            id: "gid://shopify/Product/001",
+            title: "Wireless Earbuds Pro",
+            handle: "wireless-earbuds-pro", 
+            image: "https://images.unsplash.com/photo-1590658165737-15a047b7692f?w=400&h=400&fit=crop&crop=center",
+            price: "129.99",
+            vendor: shop.split('.')[0] + " Store"
+          },
+          {
+            id: "gid://shopify/Product/002", 
+            title: "Smart Watch Series X",
+            handle: "smart-watch-series-x",
+            image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop&crop=center",
+            price: "249.99",
+            vendor: shop.split('.')[0] + " Store"
+          },
+          {
+            id: "gid://shopify/Product/003",
+            title: "Premium Phone Case",
+            handle: "premium-phone-case",
+            image: "https://images.unsplash.com/photo-1601593346740-925612772716?w=400&h=400&fit=crop&crop=center", 
+            price: "39.99",
+            vendor: shop.split('.')[0] + " Store"
+          },
+          {
+            id: "gid://shopify/Product/004",
+            title: "Bluetooth Speaker Mini",
+            handle: "bluetooth-speaker-mini",
+            image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&h=400&fit=crop&crop=center", 
+            price: "79.99",
+            vendor: shop.split('.')[0] + " Store"
+          }
+        ];
+      }
     }
 
-    // Get the latest template for this shop
+    // Get the specific live-preview template for this shop
     const mobileApp = await prisma.mobileApp.findUnique({
       where: { shop: shop },
       include: {
@@ -150,8 +191,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
               }
             }
           },
-          orderBy: { updatedAt: 'desc' },
-          take: 1 // Get the most recent template
+          orderBy: { updatedAt: 'desc' }
         }
       }
     });
@@ -163,10 +203,19 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       });
     }
 
-    const latestTemplate = mobileApp.pages[0];
+    // Look for the specific live-preview template first, then fall back to latest
+    let targetTemplate = mobileApp.pages.find(page => page.name === 'live-preview-1751483946613');
     
+    // If the specific template doesn't exist, use the latest template
+    if (!targetTemplate) {
+      targetTemplate = mobileApp.pages[0];
+      console.log(`⚠️ Template live-preview-1751483946613 not found, using latest: ${targetTemplate.name}`);
+    } else {
+      console.log(`✅ Found specific template: ${targetTemplate.name}`);
+    }
+
     // Transform database components to mobile app format
-    const components = latestTemplate.components.map(comp => {
+    const components = targetTemplate.components.map(comp => {
       // Find the corresponding component library entry by type and name
       const componentLibEntry = componentLibrary.find(c => 
         c.type === comp.component.type && c.name === comp.component.name
@@ -182,13 +231,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     });
 
     const config = {
-      id: latestTemplate.id,
-      name: latestTemplate.name,
-      slug: latestTemplate.slug,
+      id: targetTemplate.id,
+      name: targetTemplate.name,
+      slug: targetTemplate.slug,
       shop: shop,
       components: components,
       products: shopifyProducts,
-      updatedAt: latestTemplate.updatedAt,
+      updatedAt: targetTemplate.updatedAt,
       hasApp: true
     };
 

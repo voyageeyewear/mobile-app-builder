@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "tryongoeyemyshopifycom_APK",
+    "slug": "tryongoeyemyshopifycom_APK",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.voyageeyewear.tryongoeyemyshopifycom_APK"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c4a2557f-88ec-4c78-9261-bcd63921817e"
+      }
+    }
+  }
+}
