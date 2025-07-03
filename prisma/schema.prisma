@@ -243,6 +243,7 @@ enum ComponentType {
   TEXT_BLOCK
   IMAGE
   VIDEO
+  HERO_SLIDER
   BUTTON
   SPACER
   DIVIDER
