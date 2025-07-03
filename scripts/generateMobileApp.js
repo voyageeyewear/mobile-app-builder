@@ -1123,7 +1123,7 @@ import TextBlock from './src/components/TextBlock';
 import Image from './src/components/Image';
 import Button from './src/components/Button';
 
-const LIVE_CONFIG_URL = 'http://localhost:63158/api/live-config/${config.shop}';
+const LIVE_CONFIG_URL = 'http://localhost:55856/api/live-config/${config.shop}';
 
 const App = () => {
   const [config, setConfig] = useState(null);

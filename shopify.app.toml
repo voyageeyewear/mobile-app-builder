@@ -3,7 +3,7 @@
 client_id = "46e3839f24818638319c72bab3ffb1fc"
 name = "app-builder"
 handle = "app-builder-25"
-application_url = "https://worried-pattern-critical-neighbor.trycloudflare.com"
+application_url = "https://sas-studio-biology-annoying.trycloudflare.com"
 embedded = true
 
 [build]
@@ -42,7 +42,7 @@ api_version = "2025-04"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://worried-pattern-critical-neighbor.trycloudflare.com/auth/callback", "https://worried-pattern-critical-neighbor.trycloudflare.com/auth/shopify/callback", "https://worried-pattern-critical-neighbor.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://sas-studio-biology-annoying.trycloudflare.com/auth/callback", "https://sas-studio-biology-annoying.trycloudflare.com/auth/shopify/callback", "https://sas-studio-biology-annoying.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
